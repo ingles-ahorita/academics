@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import ClassesPage from './pages/ClassesPage';
+import ClassAttendancePage from './pages/ClassAttendancePage';
+import StudentManagementPage from './pages/StudentManagementPage';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -27,6 +29,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ClassesPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/class/:classId/attendance" 
+        element={
+          <ProtectedRoute>
+            <ClassAttendancePage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/students" 
+        element={
+          <ProtectedRoute>
+            <StudentManagementPage />
           </ProtectedRoute>
         } 
       />
