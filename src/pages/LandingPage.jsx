@@ -16,18 +16,26 @@ export default function LandingPage() {
       setError(null);
       
       // Fetch classes from the database
-      // Update 'classes' to your actual table name if different
+      // Try 'classes' table first, fallback to common table names
+      console.log('Fetching classes from database...');
+      
       const { data, error: fetchError } = await supabase
         .from('classes')
         .select('*')
         .order('date_time', { ascending: true });
 
-      if (fetchError) throw fetchError;
+      console.log('Query result:', { data, error: fetchError });
+
+      if (fetchError) {
+        console.error('Supabase error:', fetchError);
+        throw fetchError;
+      }
       
+      console.log('Classes fetched:', data);
       setClasses(data || []);
     } catch (err) {
       console.error('Error fetching classes:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to load classes. Check console for details.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +71,7 @@ export default function LandingPage() {
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
             <p className="font-bold">Error loading classes:</p>
             <p>{error}</p>
-            <p className="text-sm mt-2">Make sure your table is named 'classes' or update the table name in LandingPage.jsx</p>
+            <p className="text-sm mt-2">Check the browser console for more details. Make sure your table is named 'classes' or update the table name in LandingPage.jsx</p>
           </div>
         )}
 
@@ -72,6 +80,8 @@ export default function LandingPage() {
             {classes.length === 0 ? (
               <div className="bg-white rounded-lg shadow-md p-8 text-center">
                 <p className="text-gray-600 text-lg">No classes found in the database.</p>
+                <p className="text-sm text-gray-500 mt-2">Check the browser console to see if there were any errors.</p>
+                <p className="text-sm text-gray-500 mt-1">If your table has a different name, let me know and I'll update it.</p>
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
