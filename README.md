@@ -54,7 +54,7 @@ This app is configured to deploy to GitHub Pages automatically using GitHub Acti
 
 3. **Push to main branch:**
    - The workflow will automatically build and deploy on every push to `main` or `master`
-   - Your app will be available at `https://[username].github.io/academic-app/`
+   - Your app will be available at `https://[username].github.io/academics/`
 
 4. **Custom Domain (Optional):**
    - If you're using a custom domain (like `academic.inglesahorita.com`), update the `base` path in `vite.config.js` to `/` instead of `/academic-app/`
