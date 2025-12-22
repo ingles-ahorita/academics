@@ -15,23 +15,56 @@ export default function LandingPage() {
       setLoading(true);
       setError(null);
       
-      // Fetch classes from the database
-      // Try 'classes' table first, fallback to common table names
       console.log('Fetching classes from database...');
       
-      const { data, error: fetchError } = await supabase
-        .from('classes')
-        .select('*')
-        .order('date_time', { ascending: true });
+      // Try common table names
+      const tableNames = ['classes', 'class', 'sessions', 'lessons', 'academic_classes'];
+      let data = null;
+      let fetchError = null;
+      let successfulTable = null;
 
-      console.log('Query result:', { data, error: fetchError });
+      for (const tableName of tableNames) {
+        console.log(`Trying table: ${tableName}`);
+        const result = await supabase
+          .from(tableName)
+          .select('*');
+        
+        console.log(`Result for ${tableName}:`, { data: result.data, error: result.error, count: result.data?.length });
+        
+        if (result.error) {
+          // If it's a "relation does not exist" error, try next table
+          if (result.error.code === 'PGRST116' || result.error.message?.includes('does not exist')) {
+            console.log(`Table ${tableName} does not exist, trying next...`);
+            continue;
+          }
+          // Other errors, throw them
+          fetchError = result.error;
+          break;
+        }
+        
+        if (result.data && result.data.length > 0) {
+          data = result.data;
+          successfulTable = tableName;
+          console.log(`✅ Found data in table: ${tableName}`, data);
+          break;
+        }
+      }
 
-      if (fetchError) {
+      if (fetchError && !data) {
         console.error('Supabase error:', fetchError);
         throw fetchError;
       }
       
-      console.log('Classes fetched:', data);
+      if (!data || data.length === 0) {
+        console.warn('No data found in any table. Tried:', tableNames);
+        console.log('Please check:');
+        console.log('1. Table name is correct');
+        console.log('2. RLS policies allow anonymous read access');
+        console.log('3. There is data in the table');
+      } else {
+        console.log(`✅ Successfully loaded ${data.length} classes from table: ${successfulTable}`);
+      }
+      
       setClasses(data || []);
     } catch (err) {
       console.error('Error fetching classes:', err);
