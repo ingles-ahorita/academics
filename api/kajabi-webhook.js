@@ -50,18 +50,20 @@ export default async function handler(req, res) {
     }
 
     // Extract customer information from Kajabi payload
-    if (!payload.customer || !payload.customer.email) {
-      console.error('Missing customer email in payload');
+    // Structure: { id, event, payload: { member_email, member_name, member_first_name, member_last_name, ... } }
+    if (!payload.payload || !payload.payload.member_email) {
+      console.error('Missing member_email in payload');
       return res.status(400).json({ 
-        error: 'Missing customer email',
+        error: 'Missing member_email in payload',
         received: Object.keys(payload)
       });
     }
 
-    const customerEmail = payload.customer.email.toLowerCase().trim();
-    const firstName = payload.customer.first_name || '';
-    const lastName = payload.customer.last_name || '';
-    const customerName = `${firstName} ${lastName}`.trim() || customerEmail;
+    const customerEmail = payload.payload.member_email.toLowerCase().trim();
+    const firstName = payload.payload.member_first_name || '';
+    const lastName = payload.payload.member_last_name || '';
+    const memberName = payload.payload.member_name || '';
+    const customerName = memberName || `${firstName} ${lastName}`.trim() || customerEmail;
 
     // Check if student already exists by email
     const { data: existingStudent } = await supabase
