@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     
     console.log('Kajabi webhook received:', JSON.stringify(payload, null, 2));
 
-    // Store the entire payload in webhook_inbounds table
+    // Store the entire payload in webhook_inbounds table for monitoring
     const { data: storedPayload, error: storeError } = await supabase
       .from('webhook_inbounds')
       .insert({
@@ -44,17 +44,63 @@ export default async function handler(req, res) {
 
     if (storeError) {
       console.error('Error storing webhook payload:', storeError);
-      return res.status(500).json({ 
-        error: 'Failed to store webhook payload',
-        details: storeError.message
+      // Continue processing even if storage fails
+    } else {
+      console.log('Payload stored successfully:', storedPayload.id);
+    }
+
+    // Extract customer information from Kajabi payload
+    if (!payload.customer || !payload.customer.email) {
+      console.error('Missing customer email in payload');
+      return res.status(400).json({ 
+        error: 'Missing customer email',
+        received: Object.keys(payload)
       });
     }
 
-    console.log('Payload stored successfully:', storedPayload.id);
+    const customerEmail = payload.customer.email.toLowerCase().trim();
+    const firstName = payload.customer.first_name || '';
+    const lastName = payload.customer.last_name || '';
+    const customerName = `${firstName} ${lastName}`.trim() || customerEmail;
+
+    // Check if student already exists by email
+    const { data: existingStudent } = await supabase
+      .from('students')
+      .select('*')
+      .eq('email', customerEmail)
+      .maybeSingle();
+
+    if (existingStudent) {
+      console.log('Student already exists:', existingStudent.id);
+      return res.status(200).json({ 
+        message: 'Student already exists',
+        student: existingStudent
+      });
+    }
+
+    // Create new student
+    const { data: newStudent, error: createError } = await supabase
+      .from('students')
+      .insert({
+        name: customerName,
+        email: customerEmail
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating student:', createError);
+      return res.status(500).json({ 
+        error: 'Failed to create student',
+        details: createError.message
+      });
+    }
+
+    console.log('Student created successfully:', newStudent.id);
 
     return res.status(200).json({ 
-      message: 'Webhook received and stored',
-      id: storedPayload.id
+      message: 'Student created successfully',
+      student: newStudent
     });
 
   } catch (error) {
