@@ -34,7 +34,7 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/attendance/:classId" 
+        path="/manage-class/:classId/attendance" 
         element={
           <ProtectedRoute>
             <ClassAttendancePage />

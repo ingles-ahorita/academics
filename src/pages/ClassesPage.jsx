@@ -269,7 +269,7 @@ export default function ClassesPage() {
   };
 
   const handleTakeAttendance = (classId) => {
-    window.open(`/attendance/${classId}`, '_blank');
+    window.open(`/manage-class/${classId}/attendance`, '_blank');
   };
 
   const handleOpenCreateModal = async () => {
@@ -751,15 +751,29 @@ export default function ClassesPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   URL *
                 </label>
-                <input
-                  type="url"
-                  value={classModal.url}
-                  onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
-                  placeholder="https://example.com/class"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  required
-                  disabled={savingClass}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={classModal.url}
+                    onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
+                    placeholder="https://example.com/class"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    required
+                    disabled={savingClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => window.open('https://meet.google.com', '_blank')}
+                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center justify-center"
+                    title="Open Google Meet"
+                    disabled={savingClass}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                      <path d="M19.53 9.75L15.75 6V8.25H9.75V6L5.97 9.75L9.75 13.5V11.25H15.75V13.5L19.53 9.75Z" fill="#00832D"/>
+                      <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="#00832D"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div>

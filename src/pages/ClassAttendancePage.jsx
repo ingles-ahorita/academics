@@ -397,21 +397,24 @@ export default function ClassAttendancePage() {
         {classInfo && (
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Class Information</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Date & Time</p>
-                <p className="text-lg font-semibold text-gray-800">
-                  {formatDateTime(classInfo.date_time)}
-                </p>
+            {classInfo.url && (
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <p className="text-xs text-gray-500 mb-1">Meeting URL</p>
+                <a 
+                  href={classInfo.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+                >
+                  {classInfo.url}
+                </a>
               </div>
-              {classInfo.created_at && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Created</p>
-                  <p className="text-lg font-semibold text-gray-800">
-                    {formatDateTime(classInfo.created_at)}
-                  </p>
-                </div>
-              )}
+            )}
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Date & Time</p>
+              <p className="text-lg font-semibold text-gray-800">
+                {formatDateTime(classInfo.date_time)}
+              </p>
             </div>
             {classInfo.note && (
               <div className="mt-4 pt-4 border-t border-gray-200">
