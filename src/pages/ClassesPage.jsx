@@ -11,10 +11,11 @@ export default function ClassesPage() {
   const [teacherNames, setTeacherNames] = useState({});
   const [selectedLevel, setSelectedLevel] = useState('all');
   const [selectedTeacher, setSelectedTeacher] = useState('all');
-  const [classModal, setClassModal] = useState({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '' });
+  const [classModal, setClassModal] = useState({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
   const [savingClass, setSavingClass] = useState(false);
   const [allTeachers, setAllTeachers] = useState([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [copiedUrlId, setCopiedUrlId] = useState(null);
   const { teacher, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -268,7 +269,7 @@ export default function ClassesPage() {
   };
 
   const handleTakeAttendance = (classId) => {
-    window.open(`/class/${classId}/attendance`, '_blank');
+    window.open(`/attendance/${classId}`, '_blank');
   };
 
   const handleOpenCreateModal = async () => {
@@ -279,7 +280,8 @@ export default function ClassesPage() {
       dateTime: '', 
       level: '', 
       note: '', 
-      teacherId: teacher.role === 'Manager' ? '' : teacher.id 
+      teacherId: teacher.role === 'Manager' ? '' : teacher.id,
+      url: ''
     });
     
     // If Manager, fetch all teachers for the dropdown
@@ -308,7 +310,8 @@ export default function ClassesPage() {
       dateTime: localDateTimeString, 
       level: classItem.level || '', 
       note: classItem.note || '', 
-      teacherId: classItem.teacher_id || (teacher.role === 'Manager' ? '' : teacher.id)
+      teacherId: classItem.teacher_id || (teacher.role === 'Manager' ? '' : teacher.id),
+      url: classItem.url || ''
     });
     
     // If Manager, fetch all teachers for the dropdown
@@ -333,6 +336,11 @@ export default function ClassesPage() {
 
     if (!classModal.level) {
       setError('Level is required');
+      return;
+    }
+
+    if (!classModal.url) {
+      setError('URL is required');
       return;
     }
 
@@ -362,6 +370,7 @@ export default function ClassesPage() {
         date_time: dateTimeISO,
         level: classModal.level || null,
         note: classModal.note || null,
+        url: classModal.url || null,
         teacher_id: teacher.role === 'Manager' && classModal.teacherId 
           ? classModal.teacherId 
           : teacher.id
@@ -390,7 +399,7 @@ export default function ClassesPage() {
           // Refresh classes list
           await fetchClasses();
           // Close modal and reset form
-          setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '' });
+          setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
           setError(null);
           break;
         } else if (result.error && result.error.code !== 'PGRST116') {
@@ -611,9 +620,12 @@ export default function ClassesPage() {
                               <div className="mt-4 flex gap-2">
                                 <button
                                   onClick={() => handleOpenEditModal(classItem)}
-                                  className="flex-1 bg-gray-600 text-white py-1.5 px-3 rounded-lg hover:bg-gray-700 transition text-sm font-medium"
+                                  className="px-2.5 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                                  title="Edit Class"
                                 >
-                                  Edit
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
                                 </button>
                                 <button
                                   onClick={() => handleTakeAttendance(classItem.id)}
@@ -621,6 +633,35 @@ export default function ClassesPage() {
                                 >
                                   Take Attendance
                                 </button>
+                                <button
+                                  onClick={async () => {
+                                      try {
+                                        const publicId = classItem.public_id || classItem.id;
+                                        const urlToCopy = `https://academic.inglesahorita.com/class/${publicId}`;
+                                        await navigator.clipboard.writeText(urlToCopy);
+                                        setCopiedUrlId(classItem.id);
+                                        setTimeout(() => setCopiedUrlId(null), 2000);
+                                      } catch (err) {
+                                        console.error('Failed to copy URL:', err);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 rounded-lg transition ${
+                                      copiedUrlId === classItem.id
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                    title={copiedUrlId === classItem.id ? 'Copied!' : 'Copy URL'}
+                                  >
+                                    {copiedUrlId === classItem.id ? (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : (
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                      </svg>
+                                    )}
+                                  </button>
                               </div>
                             </div>
                           ))}
@@ -708,6 +749,21 @@ export default function ClassesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  URL *
+                </label>
+                <input
+                  type="url"
+                  value={classModal.url}
+                  onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
+                  placeholder="https://example.com/class"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  required
+                  disabled={savingClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Note (Optional)
                 </label>
                 <textarea
@@ -728,7 +784,7 @@ export default function ClassesPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={handleSaveClass}
-                disabled={savingClass || !classModal.dateTime || !classModal.level || (teacher?.role === 'Manager' && !classModal.teacherId)}
+                disabled={savingClass || !classModal.dateTime || !classModal.level || !classModal.url || (teacher?.role === 'Manager' && !classModal.teacherId)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingClass 
@@ -737,7 +793,7 @@ export default function ClassesPage() {
               </button>
               <button
                 onClick={() => {
-                  setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '' });
+                  setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
                   setError(null);
                 }}
                 disabled={savingClass}

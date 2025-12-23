@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import ClassesPage from './pages/ClassesPage';
 import ClassAttendancePage from './pages/ClassAttendancePage';
 import StudentManagementPage from './pages/StudentManagementPage';
+import ClassRedirectPage from './pages/ClassRedirectPage';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -33,7 +34,7 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/class/:classId/attendance" 
+        path="/attendance/:classId" 
         element={
           <ProtectedRoute>
             <ClassAttendancePage />
@@ -47,6 +48,10 @@ function AppRoutes() {
             <StudentManagementPage />
           </ProtectedRoute>
         } 
+      />
+      <Route 
+        path="/class/:classId" 
+        element={<ClassRedirectPage />} 
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
