@@ -28,35 +28,56 @@ export default async function handler(req, res) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Parse the webhook payload from Kajabi
-    const payload = req.body;
-    
-    console.log('Kajabi webhook received:', JSON.stringify(payload, null, 2));
+    // Parse the request body
+    const { email, name, weekly_classes } = req.body;
 
-    // Extract customer information from Kajabi payload
-    // Structure: { id, event, payload: { member_email, member_name, member_first_name, member_last_name, ... } }
-    if (!payload.payload || !payload.payload.member_email) {
-      console.error('Missing member_email in payload');
+    if (!email || !name) {
       return res.status(400).json({ 
-        error: 'Missing member_email in payload',
-        received: Object.keys(payload)
+        error: 'Missing required fields: email and name are required'
       });
     }
 
-    const customerEmail = payload.payload.member_email.toLowerCase().trim();
-    const firstName = payload.payload.member_first_name || '';
-    const lastName = payload.payload.member_last_name || '';
-    const memberName = payload.payload.member_name || '';
-    const customerName = memberName || `${firstName} ${lastName}`.trim() || customerEmail;
+    const studentEmail = email.toLowerCase().trim();
+    const studentName = name.trim();
+    const weeklyClasses = weekly_classes || 0;
+
+    console.log('Creating student:', { email: studentEmail, name: studentName, weekly_classes: weeklyClasses });
 
     // Check if student already exists by email
     const { data: existingStudent } = await supabase
       .from('students')
       .select('*')
-      .eq('email', customerEmail)
+      .eq('email', studentEmail)
       .maybeSingle();
 
     if (existingStudent) {
+      // Update existing student with weekly_classes if provided
+      if (weeklyClasses !== undefined && weeklyClasses !== null) {
+        const { data: updatedStudent, error: updateError } = await supabase
+          .from('students')
+          .update({ 
+            name: studentName,
+            weekly_classes: weeklyClasses
+          })
+          .eq('id', existingStudent.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating student:', updateError);
+          return res.status(500).json({ 
+            error: 'Failed to update student',
+            details: updateError.message
+          });
+        }
+
+        console.log('Student updated:', updatedStudent.id);
+        return res.status(200).json({ 
+          message: 'Student updated successfully',
+          student: updatedStudent
+        });
+      }
+
       console.log('Student already exists:', existingStudent.id);
       return res.status(200).json({ 
         message: 'Student already exists',
@@ -65,12 +86,15 @@ export default async function handler(req, res) {
     }
 
     // Create new student
+    const studentData = {
+      name: studentName,
+      email: studentEmail,
+      weekly_classes: weeklyClasses
+    };
+
     const { data: newStudent, error: createError } = await supabase
       .from('students')
-      .insert({
-        name: customerName,
-        email: customerEmail
-      })
+      .insert(studentData)
       .select()
       .single();
 
@@ -90,10 +114,11 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('API error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       message: error.message
     });
   }
 }
+
