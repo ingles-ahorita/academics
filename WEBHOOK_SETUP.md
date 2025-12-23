@@ -8,6 +8,21 @@ This guide explains how to set up the Kajabi webhook to automatically add custom
 2. Access to your Kajabi account settings
 3. Your Supabase credentials
 
+## Setup Logging (Recommended)
+
+Before setting up the webhook, create a logging table in Supabase to monitor all webhook requests:
+
+1. Go to your Supabase dashboard
+2. Navigate to **SQL Editor**
+3. Run the SQL script from `supabase_webhook_logs.sql` (or copy the contents)
+4. This creates a `webhook_logs` table that stores all incoming requests
+
+**Benefits:**
+- Monitor all webhook requests (successful and failed)
+- Debug issues by viewing request payloads
+- Track IP addresses and timestamps
+- View errors and stack traces
+
 ## Setup Steps
 
 ### 1. Deploy Your App
@@ -88,14 +103,46 @@ The webhook handler expects customer information in one of these formats:
 }
 ```
 
+## Monitoring Webhook Requests
+
+All webhook requests are automatically logged to:
+1. **Console logs** (Vercel function logs) - Check your Vercel dashboard → Functions → Logs
+2. **Supabase `webhook_logs` table** - Query this table to see all requests
+
+### Viewing Logs in Supabase
+
+```sql
+-- View all webhook requests
+SELECT * FROM webhook_logs ORDER BY timestamp DESC LIMIT 50;
+
+-- View only failed requests
+SELECT * FROM webhook_logs WHERE status_code >= 400 ORDER BY timestamp DESC;
+
+-- View requests with errors
+SELECT * FROM webhook_logs WHERE error IS NOT NULL ORDER BY timestamp DESC;
+
+-- Use the summary view for easier querying
+SELECT * FROM webhook_logs_summary LIMIT 50;
+```
+
+### Viewing Logs in Vercel
+
+1. Go to your Vercel dashboard
+2. Select your project
+3. Navigate to **Functions** → **kajabi-webhook**
+4. Click on **Logs** tab
+5. View real-time logs of all webhook requests
+
 ## Troubleshooting
 
 ### Student Not Created
 
 1. Check Vercel function logs for errors
-2. Verify environment variables are set correctly
-3. Check that the webhook payload structure matches expected format
-4. Ensure Supabase RLS policies allow inserts
+2. Check `webhook_logs` table in Supabase for the request details
+3. Verify environment variables are set correctly
+4. Check that the webhook payload structure matches expected format
+5. Ensure Supabase RLS policies allow inserts
+6. Review the `error` and `error_stack` fields in `webhook_logs` table
 
 ### Webhook Not Receiving Requests
 
