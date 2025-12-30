@@ -39,7 +39,9 @@ export default async function handler(req, res) {
 
     const studentEmail = email.toLowerCase().trim();
     const studentName = name.trim();
-    const weeklyClasses = weekly_classes || 0;
+    // Preserve null values - null means unlimited, 0 means 0 classes
+    // Only convert undefined to null (not provided), but keep null as null
+    const weeklyClasses = weekly_classes === undefined ? null : weekly_classes;
 
     console.log('Creating student:', { email: studentEmail, name: studentName, weekly_classes: weeklyClasses });
 
@@ -51,8 +53,8 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (existingStudent) {
-      // Update existing student with weekly_classes if provided
-      if (weeklyClasses !== undefined && weeklyClasses !== null) {
+      // Update existing student with weekly_classes if provided (including null)
+      if (weeklyClasses !== undefined) {
         const { data: updatedStudent, error: updateError } = await supabase
           .from('students')
           .update({ 
@@ -121,6 +123,7 @@ export default async function handler(req, res) {
     });
   }
 }
+
 
 
 

@@ -21,11 +21,11 @@ export default function StudentAccessPage() {
     
     // Get UTC day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
     const utcDay = now.getUTCDay();
-    
     // Calculate days to subtract to get to Monday
     // 0 = Sunday -> -6 (go back 6 days to get to previous Monday)
     // 1 = Monday -> 0 (already Monday)
     // 2 = Tuesday -> -1, etc.
+    window.alert('utcDay: ' + utcDay); // debug - force show as popup
     const daysToMonday = utcDay === 0 ? -6 : 1 - utcDay;
     
     // Create start of week in UTC (Monday 00:00:00.000)
@@ -37,36 +37,13 @@ export default function StudentAccessPage() {
     ));
     
     // Create end of week in UTC (Saturday 23:59:59.999)
-    // Sunday classes belong to previous week, so week ends on Saturday
+    // Sunday classes belong to previous week
     const endOfWeek = new Date(Date.UTC(
       startOfWeek.getUTCFullYear(),
       startOfWeek.getUTCMonth(),
-      startOfWeek.getUTCDate() + 5, // +5 days from Monday = Saturday
-      23, 59, 59, 999
+      startOfWeek.getUTCDate() + 6,
+      23, 59, 59, 0
     ));
-    
-    // Debug alert - show week bounds (commented out, uncomment if needed for debugging)
-    // window.alert(
-    //   'Week Bounds Debug:\n\n' +
-    //   'UTC Day: ' + utcDay + '\n' +
-    //   'Days to Monday: ' + daysToMonday + '\n' +
-    //   'Current UTC: ' + now.toISOString() + '\n\n' +
-    //   'Start of Week (UTC):\n' + startOfWeek.toISOString() + '\n' +
-    //   'Start of Week (Local):\n' + startOfWeek.toLocaleString() + '\n\n' +
-    //   'End of Week (UTC):\n' + endOfWeek.toISOString() + '\n' +
-    //   'End of Week (Local):\n' + endOfWeek.toLocaleString()
-    // );
-    
-    // Debug logging
-    console.log('📅 Week bounds calculation:', {
-      currentUTC: now.toISOString(),
-      utcDay: utcDay,
-      daysToMonday: daysToMonday,
-      startOfWeek: startOfWeek.toISOString(),
-      endOfWeek: endOfWeek.toISOString(),
-      startOfWeekLocal: startOfWeek.toLocaleString(),
-      endOfWeekLocal: endOfWeek.toLocaleString()
-    });
     
     return { startOfWeek, endOfWeek };
   };
@@ -103,8 +80,11 @@ export default function StudentAccessPage() {
         return;
       }
 
-      // Get max classes per week (default to 0 if not set, meaning unlimited)
-      const maxClasses = student.weekly_classes || 0;
+      // Get max classes per week
+      // null/undefined = unlimited, 0 = 0 classes, other numbers = that many classes
+      const maxClasses = student.weekly_classes === null || student.weekly_classes === undefined 
+        ? null 
+        : student.weekly_classes;
       setMaxClassesPerWeek(maxClasses);
 
       // Get week bounds
@@ -174,12 +154,8 @@ export default function StudentAccessPage() {
                   weekEnd: endOfWeek.toISOString()
                 });
                 
-                // Check if class date_time falls within the current week (Monday to Saturday in UTC)
-                // Sunday classes are excluded (they belong to previous week)
-                const isSunday = classDate.getUTCDay() === 0;
-                const isInWeek = !isSunday && classDate >= startOfWeek && classDate <= endOfWeek;
-                
-                if (isInWeek) {
+                // Check if class date_time falls within the current week (Sunday to Saturday in UTC)
+                if (classDate >= startOfWeek && classDate <= endOfWeek) {
                   count++;
                   classesList.push({
                     classId: classId,
@@ -215,8 +191,8 @@ export default function StudentAccessPage() {
       setWeeklyAttendanceCount(count);
       setAttendedClassesThisWeek(classesList);
 
-      // Check if student has reached their limit (only if limit is set)
-      if (maxClasses > 0 && count >= maxClasses) {
+      // Check if student has reached their limit (only if limit is set and not null/unlimited)
+      if (maxClasses !== null && maxClasses !== undefined && maxClasses > 0 && count >= maxClasses) {
         setError(
           `Ya has asistido a ${count} clase${count !== 1 ? 's' : ''} esta semana. ` +
           `Tu límite es de ${maxClasses} clase${maxClasses !== 1 ? 's' : ''} por semana. ` +
@@ -327,8 +303,14 @@ export default function StudentAccessPage() {
           <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
             <p className="text-sm font-medium">
               Has asistido a <strong>{weeklyAttendanceCount} clase{weeklyAttendanceCount !== 1 ? 's' : ''}</strong> esta semana.
-              {maxClassesPerWeek > 0 && (
+              {maxClassesPerWeek !== null && maxClassesPerWeek !== undefined && maxClassesPerWeek > 0 && (
                 <span> Tu límite es de {maxClassesPerWeek} clase{maxClassesPerWeek !== 1 ? 's' : ''} por semana.</span>
+              )}
+              {maxClassesPerWeek === 0 && (
+                <span> Tu límite es de 0 clases por semana.</span>
+              )}
+              {(maxClassesPerWeek === null || maxClassesPerWeek === undefined) && (
+                <span> Tienes acceso ilimitado.</span>
               )}
             </p>
             
