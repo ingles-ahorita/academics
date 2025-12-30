@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     const studentName = name.trim();
     // Preserve null values - null means unlimited, 0 means 0 classes
     // Only convert undefined to null (not provided), but keep null as null
-    const weeklyClasses = weekly_classes === undefined ? null : weekly_classes;
+    const weeklyClasses = weekly_classes;
 
     console.log('Creating student:', { email: studentEmail, name: studentName, weekly_classes: weeklyClasses });
 
