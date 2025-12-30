@@ -10,7 +10,7 @@ export default function StudentManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingStudent, setEditingStudent] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', email: '' });
+  const [editForm, setEditForm] = useState({ name: '', email: '', weekly_classes: '' });
   const [viewingStudent, setViewingStudent] = useState(null);
   const [studentClasses, setStudentClasses] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
@@ -117,13 +117,14 @@ export default function StudentManagementPage() {
     setEditingStudent(student.id);
     setEditForm({
       name: student.name || '',
-      email: student.email || ''
+      email: student.email || '',
+      weekly_classes: student.weekly_classes || ''
     });
   };
 
   const handleCancelEdit = () => {
     setEditingStudent(null);
-    setEditForm({ name: '', email: '' });
+    setEditForm({ name: '', email: '', weekly_classes: '' });
   };
 
   const handleSaveEdit = async (studentId) => {
@@ -135,11 +136,24 @@ export default function StudentManagementPage() {
         return;
       }
 
+      const classesPerWeek = editForm.weekly_classes === '' || editForm.weekly_classes === null 
+        ? null 
+        : parseInt(editForm.weekly_classes, 10);
+
+      // Validate weekly_classes if provided
+      if (editForm.weekly_classes !== '' && editForm.weekly_classes !== null) {
+        if (isNaN(classesPerWeek) || classesPerWeek < 0) {
+          setError('Classes per week must be a non-negative number');
+          return;
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('students')
         .update({
           name: editForm.name.trim() || null,
-          email: editForm.email.toLowerCase().trim()
+          email: editForm.email.toLowerCase().trim(),
+          weekly_classes: classesPerWeek
         })
         .eq('id', studentId);
 
@@ -149,7 +163,8 @@ export default function StudentManagementPage() {
       const updatedStudent = {
         ...students.find(s => s.id === studentId),
         name: editForm.name.trim() || null,
-        email: editForm.email.toLowerCase().trim()
+        email: editForm.email.toLowerCase().trim(),
+        weekly_classes: classesPerWeek
       };
       
       setAllStudents(allStudents.map(s => 
@@ -321,6 +336,23 @@ export default function StudentManagementPage() {
                               required
                             />
                           </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Classes per Week
+                            </label>
+                            <input
+                              type="number"
+                              value={editForm.weekly_classes}
+                              onChange={(e) => setEditForm({ ...editForm, weekly_classes: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                              placeholder="Leave empty for unlimited"
+                              min="0"
+                              step="1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Leave empty or set to 0 for unlimited classes per week
+                            </p>
+                          </div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleSaveEdit(student.id)}
@@ -345,6 +377,11 @@ export default function StudentManagementPage() {
                                 {student.name || 'No name'}
                               </h3>
                               <p className="text-gray-600">{student.email}</p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                Classes per week: {student.weekly_classes === null || student.weekly_classes === undefined 
+                                  ? 'Unlimited' 
+                                  : `${student.weekly_classes} class${student.weekly_classes !== 1 ? 'es' : ''}`}
+                              </p>
                               {student.created_at && (
                                 <p className="text-sm text-gray-500 mt-1">
                                   Created: {formatDateTime(student.created_at)}

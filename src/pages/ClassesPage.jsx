@@ -225,7 +225,8 @@ export default function ClassesPage() {
       tomorrow: [],
       thisWeek: [],
       nextWeek: [],
-      later: []
+      later: [],
+      previous: []
     };
 
     classesList.forEach((classItem) => {
@@ -238,7 +239,10 @@ export default function ClassesPage() {
       const classDate = new Date(classItem.date_time);
       classDate.setHours(0, 0, 0, 0);
 
-      if (classDate.getTime() === today.getTime()) {
+      // Check if class is in the past
+      if (classDate.getTime() < today.getTime()) {
+        groups.previous.push(classItem);
+      } else if (classDate.getTime() === today.getTime()) {
         groups.today.push(classItem);
       } else if (classDate.getTime() === tomorrow.getTime()) {
         groups.tomorrow.push(classItem);
@@ -247,7 +251,7 @@ export default function ClassesPage() {
       } else if (classDate > endOfThisWeek && classDate <= endOfNextWeek) {
         groups.nextWeek.push(classItem);
       } else {
-        // All other classes (past or future beyond next week)
+        // Future classes beyond next week
         groups.later.push(classItem);
       }
     });
@@ -259,11 +263,18 @@ export default function ClassesPage() {
       return timeA - timeB;
     };
 
+    const sortByTimeDesc = (a, b) => {
+      const timeA = a.date_time ? new Date(a.date_time).getTime() : 0;
+      const timeB = b.date_time ? new Date(b.date_time).getTime() : 0;
+      return timeB - timeA; // Descending for previous classes (most recent first)
+    };
+
     groups.today.sort(sortByTime);
     groups.tomorrow.sort(sortByTime);
     groups.thisWeek.sort(sortByTime);
     groups.nextWeek.sort(sortByTime);
     groups.later.sort(sortByTime);
+    groups.previous.sort(sortByTimeDesc); // Most recent previous classes first
 
     return groups;
   };
@@ -568,7 +579,8 @@ export default function ClassesPage() {
                   { title: 'Tomorrow', classes: grouped.tomorrow },
                   { title: 'This Week', classes: grouped.thisWeek },
                   { title: 'Next Week', classes: grouped.nextWeek },
-                  { title: 'Later', classes: grouped.later }
+                  { title: 'Later', classes: grouped.later },
+                  { title: 'Previous Classes', classes: grouped.previous }
                 ];
 
                 // Filter out empty sections
