@@ -378,15 +378,22 @@ export default function ClassesPage() {
       const localDate = new Date(classModal.dateTime);
       const dateTimeISO = localDate.toISOString();
 
+      const teacherId = teacher.role === 'Manager' && classModal.teacherId 
+        ? classModal.teacherId 
+        : teacher.id;
+
       const classData = {
         date_time: dateTimeISO,
         level: classModal.level || null,
         note: classModal.note || null,
         url: classModal.url || null,
-        teacher_id: teacher.role === 'Manager' && classModal.teacherId 
-          ? classModal.teacherId 
-          : teacher.id
+        teacher_id: teacherId
       };
+
+      // Add created_by field only when creating (not editing)
+      if (classModal.mode === 'create') {
+        classData.created_by = teacherId;
+      }
 
       for (const tableName of tableNames) {
         let result;
