@@ -336,8 +336,8 @@ export default function ClassesPage() {
   };
 
   const getAvailableLevels = () => {
-    const levels = [...new Set(allClasses.map(c => c.level).filter(Boolean))].sort();
-    return levels;
+    // Always return the 3 fixed level options
+    return ['Beginner', 'Intermediate', 'Advanced'];
   };
 
   const handleSaveClass = async () => {
