@@ -337,7 +337,7 @@ export default function ClassesPage() {
 
   const getAvailableLevels = () => {
     // Always return the 3 fixed level options
-    return ['Beginner', 'Intermediate', 'Advanced'];
+    return ['Basic', 'Intermediate', 'Advanced'];
   };
 
   const handleSaveClass = async () => {
