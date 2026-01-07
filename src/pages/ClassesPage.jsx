@@ -382,6 +382,16 @@ export default function ClassesPage() {
         ? classModal.teacherId 
         : teacher.id;
 
+      // Get the teacher's email for calendar impersonation
+      // If Manager selected a teacher, use that teacher's email, otherwise use logged-in teacher's email
+      let teacherEmailForCalendar = teacher.email;
+      if (teacher.role === 'Manager' && classModal.teacherId) {
+        const selectedTeacher = allTeachers.find(t => t.id === classModal.teacherId);
+        if (selectedTeacher && selectedTeacher.email) {
+          teacherEmailForCalendar = selectedTeacher.email;
+        }
+      }
+
       // If creating a new class, try to generate Google Meet link automatically
       let meetLink = classModal.url; // Use provided URL if editing or if user provided one
       
@@ -402,7 +412,7 @@ export default function ClassesPage() {
               description: classModal.note || `Class session for ${classModal.level} level`,
               startTime: dateTimeISO,
               endTime: endTimeISO,
-              teacherEmail: teacher.email, // Send logged in teacher's email
+              teacherEmail: teacherEmailForCalendar, // Use selected teacher's email or logged-in teacher's email
             }),
           });
 
