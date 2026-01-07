@@ -28,7 +28,12 @@ export default function GoogleCalendarTestPage() {
       const startDateTime = new Date(formData.startTime).toISOString();
       const endDateTime = new Date(formData.endTime).toISOString();
 
-      const response = await fetch('/api/create-calendar-event', {
+      // Use environment variable for API URL, or default to relative path
+      // In production, this will be the deployed Vercel URL
+      // For local dev with Vercel CLI, use '/api/create-calendar-event'
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/create-calendar-event';
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,12 +47,21 @@ export default function GoogleCalendarTestPage() {
         }),
       });
 
-      const data = await response.json();
-
+      // Check if response is ok before parsing JSON
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create calendar event');
+        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If response isn't JSON, use status text
+          const text = await response.text();
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
+      const data = await response.json();
       setSuccess(data);
     } catch (err) {
       console.error('Error:', err);
@@ -89,6 +103,16 @@ export default function GoogleCalendarTestPage() {
             <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               <p className="font-semibold">Error:</p>
               <p className="text-sm">{error}</p>
+              {error.includes('404') && (
+                <div className="mt-3 pt-3 border-t border-red-300">
+                  <p className="text-xs font-semibold mb-1">💡 Development Tip:</p>
+                  <p className="text-xs">
+                    API routes only work when deployed to Vercel or when using <code className="bg-red-200 px-1 rounded">vercel dev</code> for local development.
+                    <br />
+                    To test locally, run: <code className="bg-red-200 px-1 rounded">npx vercel dev</code>
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
