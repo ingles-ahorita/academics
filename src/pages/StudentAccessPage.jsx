@@ -25,7 +25,6 @@ export default function StudentAccessPage() {
     // 0 = Sunday -> -6 (go back 6 days to get to previous Monday)
     // 1 = Monday -> 0 (already Monday)
     // 2 = Tuesday -> -1, etc.
-    window.alert('utcDay: ' + utcDay); // debug - force show as popup
     const daysToMonday = utcDay === 0 ? -6 : 1 - utcDay;
     
     // Create start of week in UTC (Monday 00:00:00.000)

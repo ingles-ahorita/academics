@@ -28,10 +28,12 @@ export default function GoogleCalendarTestPage() {
       const startDateTime = new Date(formData.startTime).toISOString();
       const endDateTime = new Date(formData.endTime).toISOString();
 
-      // Use environment variable for API URL, or default to relative path
-      // In production, this will be the deployed Vercel URL
-      // For local dev with Vercel CLI, use '/api/create-calendar-event'
-      const apiUrl = import.meta.env.VITE_API_URL || '/api/create-calendar-event';
+      // Use environment variable for API URL, or default based on environment
+      // In development, call Vercel dev directly on port 3000
+      // In production, use relative path which will be handled by Vercel
+      const isDevelopment = import.meta.env.DEV;
+      const apiUrl = import.meta.env.VITE_API_URL || 
+        (isDevelopment ? 'http://localhost:3000/api/create-calendar-event' : '/api/create-calendar-event');
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -50,15 +52,22 @@ export default function GoogleCalendarTestPage() {
       // Check if response is ok before parsing JSON
       if (!response.ok) {
         let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        let errorDetails = null;
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
+          errorDetails = errorData.details || errorData.code || null;
+          console.error('API Error Response:', errorData);
         } catch (e) {
           // If response isn't JSON, use status text
           const text = await response.text();
           errorMessage = text || errorMessage;
+          console.error('API Error (non-JSON):', text);
         }
-        throw new Error(errorMessage);
+        const fullErrorMessage = errorDetails 
+          ? `${errorMessage}\n\nDetails: ${errorDetails}` 
+          : errorMessage;
+        throw new Error(fullErrorMessage);
       }
 
       const data = await response.json();
@@ -118,34 +127,54 @@ export default function GoogleCalendarTestPage() {
 
           {success && (
             <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-              <p className="font-semibold mb-2">✅ Event Created Successfully!</p>
+              <p className="font-semibold mb-2">✅ {success.message || 'Event Created Successfully!'}</p>
               <div className="text-sm space-y-1">
                 <p><strong>Event ID:</strong> {success.event.id}</p>
                 <p><strong>Summary:</strong> {success.event.summary}</p>
                 <p><strong>Start:</strong> {formatDateTime(success.event.start?.dateTime)}</p>
                 <p><strong>End:</strong> {formatDateTime(success.event.end?.dateTime)}</p>
-                {success.event.meetLink && (
+                {success.event.calendarId && (
+                  <p><strong>Calendar ID:</strong> {success.event.calendarId}</p>
+                )}
+                {success.event.meetLink ? (
                   <div className="mt-3 pt-3 border-t border-green-300">
-                    <p className="font-semibold mb-1">Google Meet Link:</p>
-                    <a 
-                      href={success.event.meetLink} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline break-all"
+                    <p className="font-semibold mb-2">🔗 Google Meet Link:</p>
+                    <div className="bg-white p-3 rounded border border-green-300 mb-2">
+                      <a 
+                        href={success.event.meetLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline break-all font-medium"
+                      >
+                        {success.event.meetLink}
+                      </a>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(success.event.meetLink);
+                        alert('Meet link copied to clipboard!');
+                      }}
+                      className="text-xs bg-green-200 hover:bg-green-300 px-2 py-1 rounded"
                     >
-                      {success.event.meetLink}
-                    </a>
+                      Copy Link
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 pt-3 border-t border-green-300">
+                    <p className="text-xs text-yellow-700">
+                      ⚠️ Meet link was not generated. You may need to add it manually in Google Calendar.
+                    </p>
                   </div>
                 )}
                 {success.event.htmlLink && (
-                  <div className="mt-2">
+                  <div className="mt-3 pt-3 border-t border-green-300">
                     <a 
                       href={success.event.htmlLink} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-sm"
+                      className="text-blue-600 hover:underline text-sm font-medium"
                     >
-                      View in Google Calendar →
+                      📅 View in Google Calendar →
                     </a>
                   </div>
                 )}

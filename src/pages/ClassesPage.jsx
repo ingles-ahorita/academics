@@ -351,11 +351,6 @@ export default function ClassesPage() {
       return;
     }
 
-    if (!classModal.url) {
-      setError('URL is required');
-      return;
-    }
-
     if (teacher.role === 'Manager' && !classModal.teacherId) {
       setError('Please select a teacher');
       return;
@@ -377,16 +372,70 @@ export default function ClassesPage() {
       // Convert local datetime to ISO string with timezone offset
       const localDate = new Date(classModal.dateTime);
       const dateTimeISO = localDate.toISOString();
+      
+      // Calculate end time (default to 1 hour after start, or use provided end time)
+      const endDate = new Date(localDate);
+      endDate.setHours(endDate.getHours() + 1);
+      const endTimeISO = endDate.toISOString();
 
       const teacherId = teacher.role === 'Manager' && classModal.teacherId 
         ? classModal.teacherId 
         : teacher.id;
 
+      // If creating a new class, try to generate Google Meet link automatically
+      let meetLink = classModal.url; // Use provided URL if editing or if user provided one
+      
+      if (classModal.mode === 'create' && !classModal.url) {
+        try {
+          // Call Google Calendar API to create event and get Meet link
+          const isDevelopment = import.meta.env.DEV;
+          const apiUrl = import.meta.env.VITE_API_URL || 
+            (isDevelopment ? 'http://localhost:3000/api/create-calendar-event' : '/api/create-calendar-event');
+          
+          const calendarResponse = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              summary: `${classModal.level} Class`,
+              description: classModal.note || `Class session for ${classModal.level} level`,
+              startTime: dateTimeISO,
+              endTime: endTimeISO,
+            }),
+          });
+
+          if (calendarResponse.ok) {
+            const calendarData = await calendarResponse.json();
+            if (calendarData.success && calendarData.event.meetLink) {
+              meetLink = calendarData.event.meetLink;
+              console.log('✅ Google Meet link generated:', meetLink);
+            } else {
+              console.warn('Calendar event created but no Meet link returned');
+            }
+          } else {
+            const errorData = await calendarResponse.json().catch(() => ({}));
+            console.warn('Failed to create calendar event:', errorData.error || 'Unknown error');
+            // Continue without Meet link - user can add it manually
+          }
+        } catch (calendarError) {
+          console.error('Error calling calendar API:', calendarError);
+          // Continue without Meet link - user can add it manually
+        }
+      }
+
+      // If still no URL after trying to generate, allow user to continue
+      // They can add it manually later by editing the class
+      if (!meetLink && classModal.mode === 'create') {
+        console.warn('No Meet link available. Class will be created without URL.');
+        // Don't block creation - user can add URL later by editing
+      }
+
       const classData = {
         date_time: dateTimeISO,
         level: classModal.level || null,
         note: classModal.note || null,
-        url: classModal.url || null,
+        url: meetLink || null,
         teacher_id: teacherId
       };
 
@@ -769,16 +818,16 @@ export default function ClassesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL *
+                  URL {classModal.mode === 'create' ? '(Auto-generated if empty)' : '*'}
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="url"
                     value={classModal.url}
                     onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
-                    placeholder="https://example.com/class"
+                    placeholder={classModal.mode === 'create' ? 'Will be auto-generated from Google Calendar' : 'https://example.com/class'}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    required
+                    required={classModal.mode === 'edit'}
                     disabled={savingClass}
                   />
                   <button
@@ -791,6 +840,11 @@ export default function ClassesPage() {
                     <img src={meetIcon} alt="Google Meet" className="h-5 w-5" />
                   </button>
                 </div>
+                {classModal.mode === 'create' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave empty to automatically generate a Google Meet link from Google Calendar
+                  </p>
+                )}
               </div>
 
               <div>
@@ -815,11 +869,11 @@ export default function ClassesPage() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={handleSaveClass}
-                disabled={savingClass || !classModal.dateTime || !classModal.level || !classModal.url || (teacher?.role === 'Manager' && !classModal.teacherId)}
+                disabled={savingClass || !classModal.dateTime || !classModal.level || (classModal.mode === 'edit' && !classModal.url) || (teacher?.role === 'Manager' && !classModal.teacherId)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingClass 
-                  ? (classModal.mode === 'edit' ? 'Updating...' : 'Creating...') 
+                  ? (classModal.mode === 'edit' ? 'Updating...' : 'Creating class and Meet link...') 
                   : (classModal.mode === 'edit' ? 'Update Class' : 'Create Class')}
               </button>
               <button
