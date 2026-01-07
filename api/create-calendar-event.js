@@ -47,10 +47,11 @@ Kg6/lQcqDsPb2esRVmyN
 };
 
 /**
- * 👤 Workspace user that OWNS the calendar & Meet
+ * 👤 Default Workspace user that OWNS the calendar & Meet
  * MUST be a real Google Workspace user
+ * Can be overridden via teacherEmail in request body
  */
-const IMPERSONATED_USER = 'info@inglesahorita.com';
+const DEFAULT_IMPERSONATED_USER = 'info@inglesahorita.com';
 
 export default async function handler(req, res) {
   // ─────────────────────────────────────────────
@@ -69,13 +70,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { summary, description, startTime, endTime } = req.body;
+    const { summary, description, startTime, endTime, teacherEmail } = req.body;
 
     if (!summary || !startTime || !endTime) {
       return res.status(400).json({
         error: 'Missing required fields: summary, startTime, endTime'
       });
     }
+
+    // Use teacherEmail from request, or fall back to default
+    const impersonatedUser = teacherEmail || DEFAULT_IMPERSONATED_USER;
 
     // ─────────────────────────────────────────────
     // AUTH (THIS IS THE CRITICAL PART)
@@ -84,7 +88,7 @@ export default async function handler(req, res) {
       email: serviceAccountKey.client_email,
       key: serviceAccountKey.private_key,
       scopes: ['https://www.googleapis.com/auth/calendar'],
-      subject: IMPERSONATED_USER // ✅ REQUIRED
+      subject: impersonatedUser // ✅ REQUIRED - uses logged in teacher's email
     });
 
     const calendar = google.calendar({

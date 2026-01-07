@@ -402,6 +402,7 @@ export default function ClassesPage() {
               description: classModal.note || `Class session for ${classModal.level} level`,
               startTime: dateTimeISO,
               endTime: endTimeISO,
+              teacherEmail: teacher.email, // Send logged in teacher's email
             }),
           });
 
