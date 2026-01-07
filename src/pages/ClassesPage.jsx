@@ -14,6 +14,7 @@ export default function ClassesPage() {
   const [selectedTeacher, setSelectedTeacher] = useState('all');
   const [classModal, setClassModal] = useState({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
   const [savingClass, setSavingClass] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
   const [allTeachers, setAllTeachers] = useState([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [copiedUrlId, setCopiedUrlId] = useState(null);
@@ -338,6 +339,58 @@ export default function ClassesPage() {
   const getAvailableLevels = () => {
     // Always return the 3 fixed level options
     return ['Basic', 'Intermediate', 'Advanced'];
+  };
+
+  const handleDeleteClass = async () => {
+    if (!classModal.classId) {
+      setError('Class ID is missing');
+      return;
+    }
+
+    // Confirm deletion
+    const confirmed = window.confirm('Are you sure you want to delete this class? This action cannot be undone.');
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingClass(true);
+    setError(null);
+
+    try {
+      const tableNames = ['classes', 'class', 'sessions', 'lessons', 'academic_classes'];
+      let success = false;
+      let deleteError = null;
+
+      for (const tableName of tableNames) {
+        const result = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', classModal.classId)
+          .select();
+
+        if (!result.error && result.data && result.data.length > 0) {
+          success = true;
+          // Refresh classes list
+          await fetchClasses();
+          // Close modal and reset form
+          setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
+          setError(null);
+          break;
+        } else if (result.error && result.error.code !== 'PGRST116') {
+          deleteError = result.error;
+          break;
+        }
+      }
+
+      if (!success && deleteError) {
+        throw deleteError;
+      }
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      setError(err.message || 'Failed to delete class');
+    } finally {
+      setDeletingClass(false);
+    }
   };
 
   const handleSaveClass = async () => {
@@ -878,9 +931,18 @@ export default function ClassesPage() {
             )}
 
             <div className="flex gap-2 mt-6">
+              {classModal.mode === 'edit' && (
+                <button
+                  onClick={handleDeleteClass}
+                  disabled={savingClass || deletingClass}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deletingClass ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
               <button
                 onClick={handleSaveClass}
-                disabled={savingClass || !classModal.dateTime || !classModal.level || (classModal.mode === 'edit' && !classModal.url) || (teacher?.role === 'Manager' && !classModal.teacherId)}
+                disabled={savingClass || deletingClass || !classModal.dateTime || !classModal.level || (classModal.mode === 'edit' && !classModal.url) || (teacher?.role === 'Manager' && !classModal.teacherId)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingClass 
@@ -892,7 +954,7 @@ export default function ClassesPage() {
                   setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
                   setError(null);
                 }}
-                disabled={savingClass}
+                disabled={savingClass || deletingClass}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
               >
                 Cancel
