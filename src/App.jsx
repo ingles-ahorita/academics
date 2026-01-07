@@ -5,6 +5,7 @@ import ClassesPage from './pages/ClassesPage';
 import ClassAttendancePage from './pages/ClassAttendancePage';
 import StudentManagementPage from './pages/StudentManagementPage';
 import ClassRedirectPage from './pages/ClassRedirectPage';
+import GoogleCalendarTestPage from './pages/GoogleCalendarTestPage';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -46,6 +47,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <StudentManagementPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/test-calendar" 
+        element={
+          <ProtectedRoute>
+            <GoogleCalendarTestPage />
           </ProtectedRoute>
         } 
       />
