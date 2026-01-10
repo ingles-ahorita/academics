@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import meetIcon from '../assets/meet.png';
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState([]);
@@ -338,7 +337,7 @@ export default function ClassesPage() {
 
   const getAvailableLevels = () => {
     // Always return the 3 fixed level options
-    return ['Basic', 'Intermediate', 'Advanced'];
+    return ['Complete Beginner', 'Beginner', 'Intermediate'];
   };
 
   const handleDeleteClass = async () => {
@@ -445,10 +444,11 @@ export default function ClassesPage() {
         }
       }
 
-      // If creating a new class, try to generate Google Meet link automatically
-      let meetLink = classModal.url; // Use provided URL if editing or if user provided one
+      // Handle URL: auto-generate for new classes, keep existing for edits
+      let meetLink = null;
       
-      if (classModal.mode === 'create' && !classModal.url) {
+      if (classModal.mode === 'create') {
+        // Always auto-generate Google Meet link for new classes
         try {
           // Call Google Calendar API to create event and get Meet link
           const isDevelopment = import.meta.env.DEV;
@@ -480,12 +480,15 @@ export default function ClassesPage() {
           } else {
             const errorData = await calendarResponse.json().catch(() => ({}));
             console.warn('Failed to create calendar event:', errorData.error || 'Unknown error');
-            // Continue without Meet link - user can add it manually
+            // Continue without Meet link - user can add it manually later
           }
         } catch (calendarError) {
           console.error('Error calling calendar API:', calendarError);
-          // Continue without Meet link - user can add it manually
+          // Continue without Meet link - user can add it manually later
         }
+      } else {
+        // For edit mode, keep the existing URL from the class
+        meetLink = classModal.url || null;
       }
 
       // If still no URL after trying to generate, allow user to continue
@@ -718,86 +721,108 @@ export default function ClassesPage() {
                 }
 
                 return (
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {nonEmptySections.map((section) => (
                       <div key={section.title}>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">{section.title}</h2>
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                          {section.classes.map((classItem) => (
-                            <div
-                              key={classItem.id}
-                              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-                            >
-                              <div className="mb-4">
-                                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                                  {formatCardTitle(classItem.date_time, classItem.level)}
-                                </h3>
-                                {teacher.role === 'Manager' && classItem.teacher_id && teacherNames[classItem.teacher_id] && (
-                                  <div className="text-sm text-gray-600 mb-2">
-                                    <span className="font-medium">Teacher:</span>{' '}
-                                    {teacherNames[classItem.teacher_id]}
-                                  </div>
-                                )}
-                                <div className="text-sm text-gray-500">
-                                  <span className="font-medium">Created:</span>{' '}
-                                  {formatDateTime(classItem.created_at)}
-                                </div>
-                              </div>
-                              
-                              {classItem.note && (
-                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                  <p className="text-gray-700">{classItem.note}</p>
-                                </div>
-                              )}
-
-                              <div className="mt-4 flex gap-2">
-                                <button
-                                  onClick={() => handleOpenEditModal(classItem)}
-                                  className="px-2.5 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-                                  title="Edit Class"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleTakeAttendance(classItem.id)}
-                                  className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                                >
-                                  Take Attendance
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                      try {
-                                        const publicId = classItem.public_id || classItem.id;
-                                        const urlToCopy = `https://academic.inglesahorita.com/class/${publicId}`;
-                                        await navigator.clipboard.writeText(urlToCopy);
-                                        setCopiedUrlId(classItem.id);
-                                        setTimeout(() => setCopiedUrlId(null), 2000);
-                                      } catch (err) {
-                                        console.error('Failed to copy URL:', err);
-                                      }
-                                    }}
-                                    className={`px-2.5 py-1 rounded-lg transition ${
-                                      copiedUrlId === classItem.id
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    }`}
-                                    title={copiedUrlId === classItem.id ? 'Copied!' : 'Copy URL'}
+                        <h2 className="text-xl font-bold text-gray-800 mb-3">{section.title} ({section.classes.length})</h2>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date & Time</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Level</th>
+                                  {teacher.role === 'Manager' && (
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Teacher</th>
+                                  )}
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Note</th>
+                                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {section.classes.map((classItem) => (
+                                  <tr
+                                    key={classItem.id}
+                                    className="hover:bg-gray-50 transition-colors"
                                   >
-                                    {copiedUrlId === classItem.id ? (
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    ) : (
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                      </svg>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {formatDateTime(classItem.date_time)}
+                                      </div>
+                                      <div className="text-xs text-gray-500 mt-0.5">
+                                        Created: {formatDateTime(classItem.created_at)}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {classItem.level|| 'N/A'}
+                                      </span>
+                                    </td>
+                                    {teacher.role === 'Manager' && (
+                                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                        {classItem.teacher_id && teacherNames[classItem.teacher_id] 
+                                          ? teacherNames[classItem.teacher_id]
+                                          : 'N/A'}
+                                      </td>
                                     )}
-                                  </button>
-                              </div>
-                            </div>
-                          ))}
+                                    <td className="px-4 py-3">
+                                      <div className="text-sm text-gray-600 max-w-xs truncate" title={classItem.note || ''}>
+                                        {classItem.note || <span className="text-gray-400">—</span>}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => handleOpenEditModal(classItem)}
+                                          className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition"
+                                          title="Edit Class"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          onClick={() => handleTakeAttendance(classItem.id)}
+                                          className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-xs font-medium"
+                                        >
+                                          Attendance 
+                                        </button>
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              const publicId = classItem.public_id || classItem.id;
+                                              const urlToCopy = `https://academic.inglesahorita.com/class/${publicId}`;
+                                              await navigator.clipboard.writeText(urlToCopy);
+                                              setCopiedUrlId(classItem.id);
+                                              setTimeout(() => setCopiedUrlId(null), 2000);
+                                            } catch (err) {
+                                              console.error('Failed to copy URL:', err);
+                                            }
+                                          }}
+                                          className={`p-1.5 rounded transition ${
+                                            copiedUrlId === classItem.id
+                                              ? 'bg-green-500 text-white'
+                                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                          }`}
+                                          title={copiedUrlId === classItem.id ? 'Copied!' : 'Copy URL'}
+                                        >
+                                          {copiedUrlId === classItem.id ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -880,35 +905,10 @@ export default function ClassesPage() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL {classModal.mode === 'create' ? '(Auto-generated if empty)' : '*'}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={classModal.url}
-                    onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
-                    placeholder={classModal.mode === 'create' ? 'Will be auto-generated from Google Calendar' : 'https://example.com/class'}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    required={classModal.mode === 'edit'}
-                    disabled={savingClass}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => window.open('https://meet.google.com', '_blank')}
-                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center justify-center"
-                    title="Open Google Meet"
-                    disabled={savingClass}
-                  >
-                    <img src={meetIcon} alt="Google Meet" className="h-5 w-5" />
-                  </button>
-                </div>
-                {classModal.mode === 'create' && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Leave empty to automatically generate a Google Meet link from Google Calendar
-                  </p>
-                )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">Note:</span> The Google Meet URL will be automatically generated from Google Calendar when creating a new class.
+                </p>
               </div>
 
               <div>
@@ -942,7 +942,7 @@ export default function ClassesPage() {
               )}
               <button
                 onClick={handleSaveClass}
-                disabled={savingClass || deletingClass || !classModal.dateTime || !classModal.level || (classModal.mode === 'edit' && !classModal.url) || (teacher?.role === 'Manager' && !classModal.teacherId)}
+                disabled={savingClass || deletingClass || !classModal.dateTime || !classModal.level || (teacher?.role === 'Manager' && !classModal.teacherId)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingClass 
