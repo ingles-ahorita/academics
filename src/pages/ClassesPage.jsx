@@ -905,11 +905,27 @@ export default function ClassesPage() {
                 </div>
               )}
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  <span className="font-medium">Note:</span> The Google Meet URL will be automatically generated from Google Calendar when creating a new class.
-                </p>
-              </div>
+              {classModal.mode === 'create' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-medium">Note:</span> The Google Meet URL will be automatically generated from Google Calendar when creating a new class.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    URL
+                  </label>
+                  <input
+                    type="url"
+                    value={classModal.url}
+                    onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
+                    placeholder="https://meet.google.com/..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    disabled={savingClass}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
