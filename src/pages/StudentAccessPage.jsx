@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 export default function StudentAccessPage() {
   const { classId } = useParams();
@@ -12,6 +13,13 @@ export default function StudentAccessPage() {
   const [maxClassesPerWeek, setMaxClassesPerWeek] = useState(null);
   const [showingAttendance, setShowingAttendance] = useState(false);
   const [attendedClassesThisWeek, setAttendedClassesThisWeek] = useState([]);
+  const {teacher} = useAuth();
+
+  useEffect(() => {
+    if (teacher) {
+      redirectToClass();
+    }
+  }, [teacher]);  
 
   // Calculate start and end of current week (Monday to Saturday) in UTC
   // Week resets at midnight from Sunday to Monday UTC
