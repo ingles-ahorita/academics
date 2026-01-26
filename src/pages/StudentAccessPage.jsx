@@ -71,6 +71,23 @@ export default function StudentAccessPage() {
     setWeeklyAttendanceCount(null);
 
     try {
+      // TEMPORARY: Bypass all authentication - allow any email
+      console.log('⚠️ TEMPORARY: Bypassing authentication for email:', email);
+      
+      // Skip all student validation and weekly limit checks
+      // Just redirect directly to the class
+      setChecking(false);
+      setShowingAttendance(true);
+      setWeeklyAttendanceCount(0);
+      setMaxClassesPerWeek(null);
+      
+      // Wait 2 seconds to show the attendance message, then redirect
+      setTimeout(async () => {
+        await redirectToClass();
+      }, 2000);
+
+      // ORIGINAL CODE COMMENTED OUT FOR TEMPORARY BYPASS:
+      /*
       // Find the student by email
       const { data: student, error: studentError } = await supabase
         .from('students')
@@ -218,6 +235,7 @@ export default function StudentAccessPage() {
       setTimeout(async () => {
         await redirectToClass();
       }, 2000);
+      */
     } catch (err) {
       console.error('Error checking access:', err);
       setError(err.message || 'Ocurrió un error. Por favor intenta de nuevo.');
