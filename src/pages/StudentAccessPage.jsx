@@ -86,7 +86,7 @@ export default function StudentAccessPage() {
         await redirectToClass();
       }, 2000);
 
-      // ORIGINAL CODE COMMENTED OUT FOR TEMPORARY BYPASS:
+      // ORIINAL CODE COMMENTED OUT FOR TEMPORARY BYPASS:
       /*
       // Find the student by email
       const { data: student, error: studentError } = await supabase
