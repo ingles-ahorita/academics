@@ -71,34 +71,27 @@ export default function StudentAccessPage() {
     setWeeklyAttendanceCount(null);
 
     try {
-      // TEMPORARY: Bypass all authentication - allow any email
-      console.log('⚠️ TEMPORARY: Bypassing authentication for email:', email);
-      
-      // Skip all student validation and weekly limit checks
-      // Just redirect directly to the class
-      setChecking(false);
-      setShowingAttendance(true);
-      setWeeklyAttendanceCount(0);
-      setMaxClassesPerWeek(null);
-      
-      // Wait 2 seconds to show the attendance message, then redirect
-      setTimeout(async () => {
-        await redirectToClass();
-      }, 2000);
-
-      // ORIINAL CODE COMMENTED OUT FOR TEMPORARY BYPASS:
-      /*
-      // Find the student by email
+      // Find the student by email (case-insensitive, return first match if multiple)
+      const normalizedEmail = email.trim();
       const { data: student, error: studentError } = await supabase
         .from('students')
         .select('*')
-        .eq('email', email.toLowerCase().trim())
+        .ilike('email', normalizedEmail)
+        .limit(1)
         .maybeSingle();
 
       if (studentError) throw studentError;
 
       if (!student) {
         setError('Estudiante no encontrado. Por favor verifica tu dirección de correo electrónico.');
+        setLoading(false);
+        setChecking(false);
+        return;
+      }
+
+      // Validate student has an ID
+      if (!student.id) {
+        setError('Error: Estudiante sin ID válido.');
         setLoading(false);
         setChecking(false);
         return;
@@ -151,7 +144,13 @@ export default function StudentAccessPage() {
         });
         
         // Check each class to see if its date_time falls within the current week
-        for (const classId of classIds) {
+        for (const attendanceClassId of classIds) {
+          // Skip if classId is invalid or undefined
+          if (!attendanceClassId || attendanceClassId === 'undefined' || attendanceClassId === 'null') {
+            console.log('⚠️ Skipping invalid class ID:', attendanceClassId);
+            continue;
+          }
+
           let classFound = false;
           let classInfo = null;
           
@@ -159,7 +158,7 @@ export default function StudentAccessPage() {
             const { data: classData, error: classError } = await supabase
               .from(tableName)
               .select('id, date_time, level, url')
-              .eq('id', classId)
+              .eq('id', attendanceClassId)
               .maybeSingle();
 
             if (!classError && classData) {
@@ -168,8 +167,8 @@ export default function StudentAccessPage() {
               if (classData.date_time) {
                 const classDate = new Date(classData.date_time);
                 
-                console.log(`📚 Class ${classId} (from ${tableName}):`, {
-                  classId: classId,
+                console.log(`📚 Class ${attendanceClassId} (from ${tableName}):`, {
+                  classId: attendanceClassId,
                   dateTime: classData.date_time,
                   dateTimeLocal: classDate.toLocaleString(),
                   dateTimeUTC: classDate.toISOString(),
@@ -182,7 +181,7 @@ export default function StudentAccessPage() {
                 if (classDate >= startOfWeek && classDate <= endOfWeek) {
                   count++;
                   classesList.push({
-                    classId: classId,
+                    classId: attendanceClassId,
                     dateTime: classData.date_time,
                     level: classData.level,
                     url: classData.url
@@ -191,7 +190,7 @@ export default function StudentAccessPage() {
                   break;
                 }
               } else {
-                console.log(`⚠️ Class ${classId} (from ${tableName}) has no date_time`);
+                console.log(`⚠️ Class ${attendanceClassId} (from ${tableName}) has no date_time`);
               }
               
               // If we found the class (even if outside the week), break to avoid checking other tables
@@ -200,7 +199,7 @@ export default function StudentAccessPage() {
           }
           
           if (!classInfo) {
-            console.log(`❌ Class ${classId} not found in any table`);
+            console.log(`❌ Class ${attendanceClassId} not found in any table`);
           }
         }
       }
@@ -235,10 +234,22 @@ export default function StudentAccessPage() {
       setTimeout(async () => {
         await redirectToClass();
       }, 2000);
-      */
     } catch (err) {
       console.error('Error checking access:', err);
-      setError(err.message || 'Ocurrió un error. Por favor intenta de nuevo.');
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        hint: err.hint,
+        stack: err.stack
+      });
+      
+      // Check if it's a UUID error
+      if (err.message && err.message.includes('uuid')) {
+        setError('Error: ID inválido. Por favor intenta de nuevo o contacta al administrador.');
+      } else {
+        setError(err.message || 'Ocurrió un error. Por favor intenta de nuevo.');
+      }
       setLoading(false);
       setChecking(false);
     }
@@ -249,42 +260,22 @@ export default function StudentAccessPage() {
       setChecking(false);
       setLoading(true);
 
-      // Find the class URL using the same logic as the original redirect
-      const tableNames = ['classes', 'class', 'sessions', 'lessons', 'academic_classes'];
-      let classData = null;
-
-      for (const tableName of tableNames) {
-        // First try by public_id
-        let { data, error } = await supabase
-          .from(tableName)
-          .select('url, id, public_id')
-          .eq('public_id', classId)
-          .maybeSingle();
-
-        // If not found, try by id
-        if (!data && (!error || error.code !== 'PGRST116')) {
-          const result = await supabase
-            .from(tableName)
-            .select('url, id, public_id')
-            .eq('id', classId)
-            .maybeSingle();
-          data = result.data;
-          error = result.error;
-        }
-
-        // If table doesn't exist, try next
-        if (error && error.code === 'PGRST116') {
-          continue;
-        }
-
-        // If we found data, use it
-        if (data && !error) {
-          classData = data;
-          break;
-        }
+      // Validate classId exists
+      if (!classId) {
+        setError('ID de clase no válido.');
+        setLoading(false);
+        setShowingAttendance(false);
+        return;
       }
 
-      if (!classData) {
+      // Find the class by id
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('url, id, public_id')
+        .eq('public_id', classId)
+        .maybeSingle();
+
+      if (classError || !classData) {
         setError('Clase no encontrada.');
         setLoading(false);
         setShowingAttendance(false);
@@ -302,7 +293,20 @@ export default function StudentAccessPage() {
       window.location.href = classData.url;
     } catch (err) {
       console.error('Error redirecting to class:', err);
-      setError('Error al redirigir a la clase. Por favor intenta de nuevo.');
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        hint: err.hint,
+        classId: classId
+      });
+      
+      // Check if it's a UUID error
+      if (err.message && err.message.includes('uuid')) {
+        setError('Error: ID de clase inválido. Por favor verifica la URL.');
+      } else {
+        setError('Error al redirigir a la clase. Por favor intenta de nuevo.');
+      }
       setLoading(false);
       setShowingAttendance(false);
     }
