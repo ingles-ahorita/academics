@@ -33,7 +33,7 @@ export default function ClassesPage() {
     }
   }, [teacher]);
 
-  // Filter classes by level and teacher
+  // Filter classes by level and teacher for the manager
   useEffect(() => {
     let filtered = allClasses;
 
