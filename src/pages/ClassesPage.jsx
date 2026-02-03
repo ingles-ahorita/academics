@@ -434,7 +434,7 @@ export default function ClassesPage() {
         ? classModal.teacherId 
         : teacher.id;
 
-      // Get the teacher's email for calendar impersonation
+      // Get the teacher's email for calendar impersonatio
       // If Manager selected a teacher, use that teacher's email, otherwise use logged-in teacher's email
       let teacherEmailForCalendar = teacher.email;
       if (teacher.role === 'Manager' && classModal.teacherId) {
