@@ -3,48 +3,33 @@ import crypto from 'crypto';
 
 /**
  * 🔐 Service account credentials
- * (In production, load this from ENV, not inline)
+ * Load from environment variable GOOGLE_SERVICE_ACCOUNT_KEY (JSON string)
+ * This should be set in Vercel environment variables or local .env file
  */
-const serviceAccountKey = {
-  type: "service_account",
-  project_id: "live-class-creation",
-  private_key_id: "d2d782a728d5de6611065eb175fec75da88a0e7b",
-  private_key: `-----BEGIN PRIVATE KEY-----
-MIIEuwIBADANBgkqhkiG9w0BAQEFAASCBKUwggShAgEAAoIBAQCxXUIbIj762+wf
-ld+UQUecpses3lAQNQFicdP4pt1ywrKdU8dhawjzyK0H0oCkys+BruNNgt5MI+Vk
-VWZvyTqvaDVaqQqFH8XKrtQ1C1l5kdeV6v8Y/7eysWb7rSjSOTnc0p9Ret/zvVPi
-ibYBx4DM+WCyhgZXARx70mLnt7wVPV9SSxA27PTmczikPPg5HCgYTGyONMZpsbDc
-Jq4VZiDtfe18pfE87gE7BVl0OFHBNJYd2BMB583wZDFDEStdhGXF6EYhbU5X46zA
-edLTMPfYLQOwzKvcmMTPfBbCTP4VqPtp6oZ9LV6/K3CjMkiAfV5mPzD+E9r0M4LB
-hnsVLp3LAgMBAAECggEAGsrnrYmi0epe5PaS66Zg1v0qtKZwmcIoD2L6jllGoote
-x/1b5Q9yLsFlwgS+giZQ6los5Ayc4AucH2f3LXPMdarcRHG8sRd3nYKDc+/e+Epb
-sr3pAzG94jSCRgqGXBtg7kay4nAZXIyBG3uKDwLAJjaVsOImGwaD8wB5CF/s/Zgi
-06R08p2rj+evy6q+VVtptk9p1qEGZtk4noQOOXBLAGP+Cn8sHvMafRvCyA/PGn1y
-mDBmudOTXiBWpapXXUBeRlJ8+PnG4CQ0bcGAobzbiIk9PNfJRGFk4GPfFSrQujky
-QY4SZS+ZctLkY6I1cQI2jILjgK59VuUl0PDg5m8xgQKBgQDzzdJ4VqwF7yABA6xE
-8pNkguIwYIMW21omf1EUrBsOn5wrjD3F2sfuVIck3csxcDHMag0uzANMn2IDQaYp
-Yl9BYNCJgm3EW7U5IQ22P35oClmpiAte5hkWvGpD9eL8Kx117EtxCU4ggnPDMhqd
-Z5qlXkfq6Dkef43jJdpQq8+t2wKBgQC6PJpML5+ffODTn3cZrES6b9bWWKYTECls
-Kqa5b/ON/nhmBmg0iL/yap+4kwykwaL6ypL2JoZZWMYQeZVJJ4Z8c43GDCdddW4n
-B9dPsXK1unahD7KO8x66wDMKG+fxB49whpyaSBFXNKQLmuqLDYRMdUJDaD12tIFM
-tANqqX9q0QKBgBkpqQtahq6mG3t/UYxcLPI2v/mWPHFjek523Xtwt+oudwPXmZiO
-GAx1FO2tJoeXuMwMNggabky+NnN3lxq2WHZ684r9ty6I+I9I5g1lSDqcttxUejf1
-L6m1EJKrEh5MpOHC3ZZxC2s3i5Md3LlaNA/VRz7rcNnA+Hf1NC8XTHv5AoGBAJtI
-7sr5ppoAMSKjQ1aHumLN4A+nqQoaHr/PLGdQfn72IIPJcdfj8lB6MSVgj1lND80X
-XcSayMj06WlRR3XQ3CUm4J6zAZu+z5MBybjsV55JlKKlCRiChSvoGGakcBgcWrDT
-vP4zeyoAfYwjps88/QQXfaHg5+bziSBgtLyaCeERAn8ho8RKOZdtmXcpoVIDp0c5
-btC5PA94m2Iwit+g+FBicWfJfyJ31uc/ElKIjupQrRePTfNsaA8qsoxe4a9cDd7Z
-O16kAkPAEcgXS7QmiwElpOp1lZk++5Lf7GYwiYeDXYYx/PN3ENY5jqIy6HGhgCY9
-Kg6/lQcqDsPb2esRVmyN
------END PRIVATE KEY-----`,
-  client_email: "meet-automation@live-class-creation.iam.gserviceaccount.com",
-  client_id: "117837142780562877528",
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-  client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/meet-automation%40live-class-creation.iam.gserviceaccount.com",
-  universe_domain: "googleapis.com"
-};
+function getServiceAccountKey() {
+  // Try to load from GOOGLE_SERVICE_ACCOUNT_KEY (JSON string) - preferred method
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    try {
+      const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+      // Ensure private_key has proper newlines
+      if (key.private_key) {
+        key.private_key = key.private_key.replace(/\\n/g, '\n');
+      }
+      return key;
+    } catch (error) {
+      console.error('Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY:', error.message);
+      throw new Error('Invalid GOOGLE_SERVICE_ACCOUNT_KEY format. Must be valid JSON.');
+    }
+  }
+
+  throw new Error(
+    'Missing GOOGLE_SERVICE_ACCOUNT_KEY environment variable. ' +
+    'Set it in Vercel environment variables or local .env file. ' +
+    'It should be the full service account JSON as a string.'
+  );
+}
+
+const serviceAccountKey = getServiceAccountKey();
 
 /**
  * 👤 Default Workspace user that OWNS the calendar & Meet
@@ -80,13 +65,65 @@ export default async function handler(req, res) {
 
     // Use teacherEmail from request, or fall back to default
     const impersonatedUser = teacherEmail || DEFAULT_IMPERSONATED_USER;
+    
+    // Validate impersonated user email format
+    if (!impersonatedUser || !impersonatedUser.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid teacher email',
+        details: `Impersonated user must be a valid email address. Got: ${impersonatedUser}`
+      });
+    }
+
+    // ─────────────────────────────────────────────
+    // DEBUGGING: Inspect service account key before auth
+    // ─────────────────────────────────────────────
+    console.log('--- Debugging Service Account Key ---');
+    console.log('GOOGLE_SERVICE_ACCOUNT_KEY env var set:', !!process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+    console.log('Service Account Email:', serviceAccountKey.client_email);
+    console.log('Service Account Client ID:', serviceAccountKey.client_id);
+    console.log('Private Key ID (from code):', serviceAccountKey.private_key_id);
+    console.log('Impersonated User (subject):', impersonatedUser);
+    if (serviceAccountKey.private_key) {
+      console.log('Private Key Length:', serviceAccountKey.private_key.length);
+      console.log('Private Key starts with:', serviceAccountKey.private_key.substring(0, 50));
+      console.log('Private Key ends with:', serviceAccountKey.private_key.substring(serviceAccountKey.private_key.length - 50));
+      // Basic format validation
+      const hasBegin = serviceAccountKey.private_key.includes('-----BEGIN PRIVATE KEY-----');
+      const hasEnd = serviceAccountKey.private_key.includes('-----END PRIVATE KEY-----');
+      const hasNewlines = serviceAccountKey.private_key.includes('\n');
+      console.log('Private Key has BEGIN marker:', hasBegin);
+      console.log('Private Key has END marker:', hasEnd);
+      console.log('Private Key has newlines:', hasNewlines);
+      // Check for common issues
+      const hasCarriageReturns = serviceAccountKey.private_key.includes('\r');
+      const hasExtraSpaces = serviceAccountKey.private_key.match(/\s{2,}/);
+      console.log('Private Key has carriage returns (\\r):', hasCarriageReturns);
+      console.log('Private Key has extra spaces:', !!hasExtraSpaces);
+      if (!hasBegin || !hasEnd) {
+        console.error('CRITICAL: Private key format seems incorrect (missing BEGIN/END markers)');
+      }
+      // Check if key looks truncated or corrupted
+      const expectedMinLength = 1500; // RSA private keys are typically 1600+ chars
+      if (serviceAccountKey.private_key.length < expectedMinLength) {
+        console.error(`CRITICAL: Private key seems too short (${serviceAccountKey.private_key.length} chars, expected ~${expectedMinLength}+)`);
+      }
+    } else {
+      console.error('CRITICAL: Private Key is missing!');
+    }
+    console.log('-----------------------------------');
+
+    // ─────────────────────────────────────────────
+    // Use the original key as-is (it was working before)
+    // ─────────────────────────────────────────────
+    const privateKey = serviceAccountKey.private_key;
 
     // ─────────────────────────────────────────────
     // AUTH (THIS IS THE CRITICAL PART)
     // ─────────────────────────────────────────────
     const auth = new google.auth.JWT({
       email: serviceAccountKey.client_email,
-      key: serviceAccountKey.private_key,
+      key: privateKey,
       scopes: ['https://www.googleapis.com/auth/calendar'],
       subject: impersonatedUser // ✅ REQUIRED - uses logged in teacher's email
     });
@@ -146,11 +183,86 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Google Calendar error:', error?.response?.data || error);
+    console.error('Error stack:', error.stack);
+    
+    const errorData = error?.response?.data || {};
+    const isInvalidGrant = errorData.error === 'invalid_grant' || 
+                          error.message?.includes('invalid_grant') ||
+                          error.message?.includes('Invalid signature');
+
+    if (isInvalidGrant) {
+      // Check if this is specifically a signature error (key mismatch)
+      const isSignatureError = errorData.error_description?.includes('Invalid signature') || 
+                              error.message?.includes('Invalid signature');
+      
+      if (isSignatureError) {
+        return res.status(500).json({
+          success: false,
+          error: 'Authentication failed: Invalid signature for token',
+          diagnosis: 'The private key in your code does not match the key Google has on file for this service account.',
+          mostLikelyCause: 'The service account key was regenerated, but the code still has the old key.',
+          solution: [
+            '🔑 Get a fresh service account key:',
+            '1. Go to Google Cloud Console: https://console.cloud.google.com/',
+            '2. Navigate to: IAM & Admin → Service Accounts',
+            '3. Find: meet-automation@live-class-creation.iam.gserviceaccount.com',
+            '4. Click on the service account → "Keys" tab',
+            '5. Click "Add Key" → "Create new key" → Choose "JSON"',
+            '6. Download the JSON file',
+            '7. Open the JSON and copy the "private_key" value',
+            '8. Update the private_key in api/create-calendar-event.js (around line 12)',
+            '',
+            '⚠️ Important: Make sure you\'re using the key from the correct service account!',
+            '   Current key ID in code: d2d782a728d5de6611065eb175fec75da88a0e7b',
+            '   Check if this key still exists in Google Cloud Console',
+            '',
+            'After updating, restart your local API server (npm run dev:api)'
+          ].join('\n'),
+          details: errorData.error_description || error.message,
+          serviceAccountEmail: serviceAccountKey.client_email,
+          currentKeyId: serviceAccountKey.private_key_id,
+          impersonatedUser: req.body.teacherEmail || DEFAULT_IMPERSONATED_USER
+        });
+      }
+      
+      // Generic invalid_grant error (could be domain-wide delegation)
+      return res.status(500).json({
+        success: false,
+        error: 'Authentication failed: invalid_grant',
+        help: [
+          'This error indicates the service account cannot impersonate the user.',
+          '',
+          'Possible causes:',
+          '1. ❌ Domain-wide delegation is not enabled for the service account',
+          '2. ❌ The service account key was regenerated but code still has old key',
+          '3. ❌ OAuth scopes not configured in Google Workspace Admin Console',
+          '',
+          '🔧 How to fix:',
+          '1. Go to Google Cloud Console → IAM & Admin → Service Accounts',
+          '2. Find: meet-automation@live-class-creation.iam.gserviceaccount.com',
+          '3. Click "Edit" → Enable "Domain-wide delegation"',
+          '4. Copy the "Client ID": 117837142780562877528',
+          '5. Go to Google Workspace Admin Console → Security → API Controls → Domain-wide Delegation',
+          '6. Add new → Paste Client ID and add scope: https://www.googleapis.com/auth/calendar',
+          '7. Save and wait a few minutes for changes to propagate',
+          '',
+          'OR if the key was regenerated:',
+          '- Download the new service account JSON key',
+          '- Update the private_key in the code with the new key'
+        ].join('\n'),
+        details: errorData.error_description || error.message,
+        serviceAccountEmail: serviceAccountKey.client_email,
+        clientId: serviceAccountKey.client_id,
+        impersonatedUser: req.body.teacherEmail || DEFAULT_IMPERSONATED_USER
+      });
+    }
 
     return res.status(500).json({
       success: false,
       error: 'Failed to create class meeting',
-      details: error?.response?.data || error.message
+      details: errorData.error_description || error.message || error.toString(),
+      errorCode: errorData.error,
+      fullError: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
