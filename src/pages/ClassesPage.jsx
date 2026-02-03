@@ -486,18 +486,30 @@ export default function ClassesPage() {
         // Continue without Meet link - user can add it manually later
       }
 
-      // If still no URL after trying to generate, allow user to continue
-      // They can add it manually later by editing the class
+      // If no URL was generated, handle based on mode
       if (!meetLink) {
-        console.warn('No Meet link available. Class will be saved without URL.');
-        // Don't block save - user can add URL later by editing
+        if (classModal.mode === 'edit') {
+          // For editing, keep the existing URL if calendar creation failed
+          meetLink = classModal.url || null;
+          if (!meetLink) {
+            setError('Failed to generate calendar event URL. Please try again or add a URL manually.');
+            setSavingClass(false);
+            return;
+          }
+          console.warn('Calendar event creation failed, keeping existing URL:', meetLink);
+        } else {
+          // For creating, we must have a URL
+          setError('Failed to generate calendar event URL. Please try again.');
+          setSavingClass(false);
+          return;
+        }
       }
 
       const classData = {
         date_time: dateTimeISO,
         level: classModal.level || null,
         note: classModal.note || null,
-        url: meetLink || null,
+        url: meetLink, // This will never be null now due to checks above
         teacher_id: teacherId
       };
 
