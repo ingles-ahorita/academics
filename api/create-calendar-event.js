@@ -51,9 +51,9 @@ Kg6/lQcqDsPb2esRVmyN
  * MUST be a real Google Workspace user
  * Can be overridden via teacherEmail in request body
  */
-const DEFAULT_IMPERSONATED_USER = 'info@inglesahorita.com';
+const DEFAULT_IMPERSONATED_USER = 'ruben@inglesahorita.com';
 
-export default async function handler(req, res) {
+export default async function handler(req, res) { 
   // ─────────────────────────────────────────────
   // CORS
   // ─────────────────────────────────────────────
