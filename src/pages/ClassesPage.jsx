@@ -444,58 +444,53 @@ export default function ClassesPage() {
         }
       }
 
-      // Handle URL: auto-generate for new classes, keep existing for edits
+      // Handle URL: auto-generate for both new classes and when updating
       let meetLink = null;
       
-      if (classModal.mode === 'create') {
-        // Always auto-generate Google Meet link for new classes
-        try {
-          // Call Google Calendar API to create event and get Meet link
-          const isDevelopment = import.meta.env.DEV;
-          const apiUrl = import.meta.env.VITE_API_URL || 
-            (isDevelopment ? 'http://localhost:3000/api/create-calendar-event' : '/api/create-calendar-event');
-          
-          const calendarResponse = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              summary: `${classModal.level} Class`,
-              description: classModal.note || `Class session for ${classModal.level} level`,
-              startTime: dateTimeISO,
-              endTime: endTimeISO,
-              teacherEmail: teacherEmailForCalendar, // Use selected teacher's email or logged-in teacher's email
-            }),
-          });
+      // Always generate a new Google Meet link (for both create and edit)
+      try {
+        // Call Google Calendar API to create event and get Meet link
+        const isDevelopment = import.meta.env.DEV;
+        const apiUrl = import.meta.env.VITE_API_URL || 
+          (isDevelopment ? 'http://localhost:3000/api/create-calendar-event' : '/api/create-calendar-event');
+        
+        const calendarResponse = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            summary: `${classModal.level} Class`,
+            description: classModal.note || `Class session for ${classModal.level} level`,
+            startTime: dateTimeISO,
+            endTime: endTimeISO,
+            teacherEmail: teacherEmailForCalendar, // Use selected teacher's email or logged-in teacher's email
+          }),
+        });
 
-          if (calendarResponse.ok) {
-            const calendarData = await calendarResponse.json();
-            if (calendarData.success && calendarData.event.meetLink) {
-              meetLink = calendarData.event.meetLink;
-              console.log('✅ Google Meet link generated:', meetLink);
-            } else {
-              console.warn('Calendar event created but no Meet link returned');
-            }
+        if (calendarResponse.ok) {
+          const calendarData = await calendarResponse.json();
+          if (calendarData.success && calendarData.event.meetLink) {
+            meetLink = calendarData.event.meetLink;
+            console.log(`✅ Google Meet link ${classModal.mode === 'create' ? 'generated' : 'regenerated'}:`, meetLink);
           } else {
-            const errorData = await calendarResponse.json().catch(() => ({}));
-            console.warn('Failed to create calendar event:', errorData.error || 'Unknown error');
-            // Continue without Meet link - user can add it manually later
+            console.warn('Calendar event created but no Meet link returned');
           }
-        } catch (calendarError) {
-          console.error('Error calling calendar API:', calendarError);
+        } else {
+          const errorData = await calendarResponse.json().catch(() => ({}));
+          console.warn('Failed to create calendar event:', errorData.error || 'Unknown error');
           // Continue without Meet link - user can add it manually later
         }
-      } else {
-        // For edit mode, keep the existing URL from the class
-        meetLink = classModal.url || null;
+      } catch (calendarError) {
+        console.error('Error calling calendar API:', calendarError);
+        // Continue without Meet link - user can add it manually later
       }
 
       // If still no URL after trying to generate, allow user to continue
       // They can add it manually later by editing the class
-      if (!meetLink && classModal.mode === 'create') {
-        console.warn('No Meet link available. Class will be created without URL.');
-        // Don't block creation - user can add URL later by editing
+      if (!meetLink) {
+        console.warn('No Meet link available. Class will be saved without URL.');
+        // Don't block save - user can add URL later by editing
       }
 
       const classData = {
@@ -905,27 +900,11 @@ export default function ClassesPage() {
                 </div>
               )}
 
-              {classModal.mode === 'create' ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800">
-                    <span className="font-medium">Note:</span> The Google Meet URL will be automatically generated from Google Calendar when creating a new class.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URL
-                  </label>
-                  <input
-                    type="url"
-                    value={classModal.url}
-                    onChange={(e) => setClassModal({ ...classModal, url: e.target.value })}
-                    placeholder="https://meet.google.com/..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    disabled={savingClass}
-                  />
-                </div>
-              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">Note:</span> The Google Meet URL will be automatically {classModal.mode === 'create' ? 'generated' : 'regenerated'} from Google Calendar when {classModal.mode === 'create' ? 'creating' : 'updating'} the class.
+                </p>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
