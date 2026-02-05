@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext(null);
 
@@ -22,31 +21,39 @@ export function AuthProvider({ children }) {
 
   const login = async (email) => {
     try {
-      // Check if email exists in teachers table
-      const { data, error } = await supabase
-        .from('teachers')
-        .select('*')
-        .eq('email', email.toLowerCase().trim())
-        .single();
+      // Call the API endpoint instead of direct Supabase call
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          throw new Error('Email not found. Please check your email address.');
-        }
-        throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Login failed');
       }
 
-      if (!data) {
-        throw new Error('Email not found. Please check your email address.');
+      if (result.success && result.teacher) {
+        // Store teacher in state and localStorage
+        setTeacher(result.teacher);
+        localStorage.setItem('teacher', JSON.stringify(result.teacher));
+        return { success: true, teacher: result.teacher };
       }
 
-      // Store teacher in state and localStorage
-      setTeacher(data);
-      localStorage.setItem('teacher', JSON.stringify(data));
-      return { success: true, teacher: data };
+      throw new Error(result.error || 'Login failed');
     } catch (err) {
       console.error('Login error:', err);
-      return { success: false, error: err.message };
+      // Handle network errors specifically
+      if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+        return { 
+          success: false, 
+          error: 'Network error. Please check your internet connection and try again.' 
+        };
+      }
+      return { success: false, error: err.message || 'Login failed' };
     }
   };
 

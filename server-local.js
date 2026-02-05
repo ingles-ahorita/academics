@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import http from 'http';
 import url from 'url';
 import { fileURLToPath } from 'url';
@@ -13,12 +14,14 @@ const PORT = process.env.PORT || 3000;
 import createCalendarEventHandler from './api/create-calendar-event.js';
 import createStudentHandler from './api/create-student.js';
 import kajabiWebhookHandler from './api/kajabi-webhook.js';
+import loginHandler from './api/login.js';
 
 // Route mapping
 const routes = {
   '/api/create-calendar-event': createCalendarEventHandler,
   '/api/create-student': createStudentHandler,
   '/api/kajabi-webhook': kajabiWebhookHandler,
+  '/api/login': loginHandler,
 };
 
 const server = http.createServer(async (req, res) => {
@@ -154,9 +157,9 @@ server.listen(PORT, () => {
   Object.keys(routes).forEach((route) => {
     console.log(`   ${route}`);
   });
-  console.log(`\n💡 Example: curl -X POST http://localhost:${PORT}/api/create-calendar-event \\`);
+  console.log(`\n💡 Example: curl -X POST http://localhost:${PORT}/api/login \\`);
   console.log(`   -H "Content-Type: application/json" \\`);
-  console.log(`   -d '{"summary":"Test","startTime":"2024-01-01T10:00:00Z","endTime":"2024-01-01T11:00:00Z"}'`);
+  console.log(`   -d '{"email":"teacher@example.com"}'`);
 });
 
 server.on('error', (error) => {
