@@ -596,6 +596,18 @@ export default function ClassesPage() {
               Student Management
             </button>
             <button
+              onClick={() => navigate('/weekly')}
+              className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition font-medium"
+            >
+              Weekly View
+            </button>
+            <button
+              onClick={() => navigate('/insights')}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+            >
+              Insights
+            </button>
+            <button
               onClick={handleLogout}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
             >

@@ -6,6 +6,8 @@ import ClassAttendancePage from './pages/ClassAttendancePage';
 import StudentManagementPage from './pages/StudentManagementPage';
 import ClassRedirectPage from './pages/ClassRedirectPage';
 import GoogleCalendarTestPage from './pages/GoogleCalendarTestPage';
+import InsightsPage from './pages/InsightsPage';
+import WeeklyViewPage from './pages/WeeklyViewPage';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -47,6 +49,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <StudentManagementPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/insights" 
+        element={
+          <ProtectedRoute>
+            <InsightsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/weekly" 
+        element={
+          <ProtectedRoute>
+            <WeeklyViewPage />
           </ProtectedRoute>
         } 
       />

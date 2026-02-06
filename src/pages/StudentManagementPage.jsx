@@ -259,12 +259,26 @@ export default function StudentManagementPage() {
             <h1 className="text-3xl font-bold text-gray-800">
               Student Management
             </h1>
-            <button
-              onClick={() => navigate('/classes')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-            >
-              Back to Classes
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/weekly')}
+                className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition font-medium"
+              >
+                Weekly View
+              </button>
+              <button
+                onClick={() => navigate('/insights')}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+              >
+                Insights
+              </button>
+              <button
+                onClick={() => navigate('/classes')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                Back to Classes
+              </button>
+            </div>
           </div>
 
           {error && (
