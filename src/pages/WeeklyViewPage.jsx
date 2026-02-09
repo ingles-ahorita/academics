@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import Layout from '../components/Layout';
 import {
   BarChart,
   Bar,
@@ -40,6 +41,8 @@ export default function WeeklyViewPage() {
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current, -1 = prev, +1 = next
   const [classes, setClasses] = useState([]);
   const [attendanceByClass, setAttendanceByClass] = useState({});
+  const [attendanceByStudent, setAttendanceByStudent] = useState({});
+  const [students, setStudents] = useState([]);
   const [teacherNames, setTeacherNames] = useState({});
 
   const { start, end } = useMemo(() => {
@@ -98,21 +101,42 @@ export default function WeeklyViewPage() {
       if (classIdList.length > 0) {
         const { data: attData, error: attError } = await supabase
           .from('attendance')
-          .select('class_id')
+          .select('class_id, student_id')
           .in('class_id', classIdList);
 
         if (!attError) attendance = attData || [];
       }
 
+      // Use string keys to avoid UUID/type mismatch between Supabase and React
       const countByClass = {};
+      const countByStudent = {};
+      const classIdSet = new Set(classIdList.map(String));
       attendance.forEach((a) => {
-        if (classIds.has(a.class_id)) {
-          countByClass[a.class_id] = (countByClass[a.class_id] || 0) + 1;
+        const cid = String(a.class_id);
+        if (classIdSet.has(cid)) {
+          countByClass[cid] = (countByClass[cid] || 0) + 1;
+          if (a.student_id) {
+            const sid = String(a.student_id);
+            countByStudent[sid] = (countByStudent[sid] || 0) + 1;
+          }
         }
       });
 
       setAttendanceByClass(countByClass);
+      setAttendanceByStudent(countByStudent);
       setClasses(weekClasses);
+
+      // Fetch students who attended (for the per-student section)
+      const studentIds = [...new Set(attendance.map((a) => a.student_id).filter(Boolean))];
+      if (studentIds.length > 0) {
+        const { data: studentsData } = await supabase
+          .from('students')
+          .select('id, name, email')
+          .in('id', studentIds);
+        setStudents(studentsData || []);
+      } else {
+        setStudents([]);
+      }
 
       // Fetch teacher names if Manager
       if (isManager && weekClasses.length > 0) {
@@ -143,7 +167,8 @@ export default function WeeklyViewPage() {
       const d = new Date(c.date_time);
       const dayIdx = d.getDay();
       const key = dayIdx === 0 ? 'Sun' : DAYS[dayIdx - 1];
-      byDay[key].push({ ...c, attendanceCount: attendanceByClass[c.id] || 0 });
+      const count = attendanceByClass[String(c.id)] ?? attendanceByClass[c.id] ?? 0;
+      byDay[key].push({ ...c, attendanceCount: count });
     });
     DAYS.forEach((day) => {
       byDay[day].sort((a, b) => new Date(a.date_time) - new Date(b.date_time));
@@ -163,10 +188,12 @@ export default function WeeklyViewPage() {
           hour: '2-digit',
           minute: '2-digit',
         });
+        const count = attendanceByClass[String(c.id)] ?? attendanceByClass[c.id] ?? 0;
         return {
           name: label.length > 18 ? label.slice(0, 18) + '…' : label,
           fullName: label,
-          attendance: attendanceByClass[c.id] || 0,
+          attendance: count,
+          classes: 1, // Each bar represents one class
           level: c.level || '—',
         };
       });
@@ -176,10 +203,20 @@ export default function WeeklyViewPage() {
     const totals = DAYS.map((day) => ({
       day,
       classes: classesByDay[day].length,
-      attendance: classesByDay[day].reduce((s, c) => s + (c.attendanceCount || 0), 0),
+      attendance: classesByDay[day].reduce((s, c) => s + (Number(c.attendanceCount) || 0), 0),
     }));
     return totals;
   }, [classesByDay]);
+
+  const studentsThisWeek = useMemo(() => {
+    return students
+      .map((s) => ({
+        ...s,
+        classesCount: attendanceByStudent[String(s.id)] ?? attendanceByStudent[s.id] ?? 0,
+      }))
+      .filter((s) => s.classesCount > 0)
+      .sort((a, b) => b.classesCount - a.classesCount);
+  }, [students, attendanceByStudent]);
 
   const formatTime = (dateTimeString) => {
     if (!dateTimeString) return '';
@@ -196,7 +233,7 @@ export default function WeeklyViewPage() {
   if (!teacher) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 py-8 px-4">
+    <Layout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
@@ -206,54 +243,32 @@ export default function WeeklyViewPage() {
               {teacher.role === 'Manager' ? 'All classes' : 'Your classes'} – at a glance
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-white rounded-lg shadow-sm border border-slate-200 p-1">
-                <button
-                  onClick={() => setWeekOffset((o) => o - 1)}
-                  className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-md font-medium"
-                >
-                  ← Prev
-                </button>
-                <span className="px-4 py-2 text-sm font-semibold text-slate-700 min-w-[200px] text-center">
-                  {formatWeekLabel(start, end)}
-                </span>
-                <button
-                  onClick={() => setWeekOffset((o) => o + 1)}
-                  className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-md font-medium"
-                >
-                  Next →
-                </button>
-              </div>
-              {weekOffset !== 0 && (
-                <button
-                  onClick={() => setWeekOffset(0)}
-                  className="px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200"
-                >
-                  This week
-                </button>
-              )}
-            </div>
-            <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-white rounded-lg shadow-sm border border-slate-200 p-1">
               <button
-                onClick={() => navigate('/insights')}
-                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition font-medium"
+                onClick={() => setWeekOffset((o) => o - 1)}
+                className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-md font-medium"
               >
-                Insights
+                ← Prev
               </button>
+              <span className="px-4 py-2 text-sm font-semibold text-slate-700 min-w-[200px] text-center">
+                {formatWeekLabel(start, end)}
+              </span>
               <button
-                onClick={() => navigate('/classes')}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+                onClick={() => setWeekOffset((o) => o + 1)}
+                className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-md font-medium"
               >
-                Classes
-              </button>
-              <button
-                onClick={() => { logout(); navigate('/'); }}
-                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition"
-              >
-                Logout
+                Next →
               </button>
             </div>
+            {weekOffset !== 0 && (
+              <button
+                onClick={() => setWeekOffset(0)}
+                className="px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-md border border-indigo-200"
+              >
+                This week
+              </button>
+            )}
           </div>
         </div>
 
@@ -303,97 +318,6 @@ export default function WeeklyViewPage() {
               </div>
             </div>
 
-            {/* Bar chart: attendance per class */}
-            {chartData.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden p-4 md:p-6">
-                <h2 className="text-lg font-semibold text-slate-800 mb-4">
-                  Attendance per class
-                </h2>
-                <div className="h-64 md:h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData}
-                      margin={{ top: 10, right: 20, left: 0, bottom: 60 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload?.[0]) {
-                            const p = payload[0].payload;
-                            return (
-                              <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-sm">
-                                <p className="font-medium text-slate-800">{p.fullName}</p>
-                                <p className="text-slate-500">{p.level}</p>
-                                <p className="text-indigo-600 font-semibold">
-                                  {p.attendance} attended
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar dataKey="attendance" fill="#6366f1" radius={[4, 4, 0, 0]}>
-                        {chartData.map((entry, i) => (
-                          <Cell
-                            key={i}
-                            fill={entry.attendance > 0 ? '#6366f1' : '#cbd5e1'}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {/* Daily totals bar chart */}
-            {dailyTotals.some((d) => d.classes > 0) && (
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden p-4 md:p-6">
-                <h2 className="text-lg font-semibold text-slate-800 mb-4">
-                  Daily overview
-                </h2>
-                <div className="h-48 md:h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={dailyTotals}
-                      margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload?.[0]) {
-                            const p = payload[0].payload;
-                            return (
-                              <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-sm">
-                                <p className="font-medium text-slate-800">{p.day}</p>
-                                <p className="text-slate-600">{p.classes} classes</p>
-                                <p className="text-indigo-600 font-semibold">
-                                  {p.attendance} total attendance
-                                </p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar dataKey="attendance" fill="#6366f1" radius={[4, 4, 0, 0]} name="Attendance" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
             {/* Week grid: classes by day */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
               <h2 className="text-lg font-semibold text-slate-800 px-5 py-4 border-b border-slate-100">
@@ -422,12 +346,12 @@ export default function WeeklyViewPage() {
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <span
                                 className={`inline-flex items-center justify-center min-w-[1.75rem] h-6 px-1.5 rounded text-xs font-semibold ${
-                                  (c.attendanceCount || 0) > 0
+                                  (Number(c.attendanceCount) || 0) > 0
                                     ? 'bg-indigo-100 text-indigo-700'
                                     : 'bg-slate-100 text-slate-500'
                                 }`}
                               >
-                                {c.attendanceCount || 0} ✓
+                                {Number(c.attendanceCount) || 0} ✓
                               </span>
                               {teacher.role === 'Manager' && c.teacher_id && (
                                 <span className="text-xs text-slate-400 truncate flex-1 text-right">
@@ -443,9 +367,147 @@ export default function WeeklyViewPage() {
                 ))}
               </div>
             </div>
+
+            {/* Bar chart: attendance per class */}
+            {chartData.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden p-4 md:p-6">
+                <h2 className="text-lg font-semibold text-slate-800 mb-4">
+                  Attendance per class
+                </h2>
+                <div className="h-64 md:h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
+                            const p = payload[0].payload;
+                            return (
+                              <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-sm">
+                                <p className="font-medium text-slate-800 mb-1">{p.fullName}</p>
+                                <p className="text-slate-500 mb-1">{p.level}</p>
+                                {payload.map((entry, index) => (
+                                  <p
+                                    key={index}
+                                    className="text-slate-600"
+                                    style={{ color: entry.color }}
+                                  >
+                                    {entry.name}: {entry.value}
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="attendance" fill="#6366f1" radius={[4, 4, 0, 0]} name="Attendance" />
+                      <Bar dataKey="classes" fill="#94a3b8" radius={[4, 4, 0, 0]} name="Classes" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Daily totals bar chart */}
+            {dailyTotals.some((d) => d.classes > 0) && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden p-4 md:p-6">
+                <h2 className="text-lg font-semibold text-slate-800 mb-4">
+                  Daily overview (classes & attendance)
+                </h2>
+                <div className="h-48 md:h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={dailyTotals}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
+                            const p = payload[0].payload;
+                            return (
+                              <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-sm">
+                                <p className="font-medium text-slate-800 mb-1">{p.day}</p>
+                                {payload.map((entry, index) => (
+                                  <p
+                                    key={index}
+                                    className="text-slate-600"
+                                    style={{ color: entry.color }}
+                                  >
+                                    {entry.name}: {entry.value}
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar
+                        dataKey="attendance"
+                        fill="#6366f1"
+                        radius={[4, 4, 0, 0]}
+                        name="Attendance"
+                      />
+                      <Bar
+                        dataKey="classes"
+                        fill="#94a3b8"
+                        radius={[4, 4, 0, 0]}
+                        name="Classes"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Students this week: classes per student */}
+            {studentsThisWeek.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <h2 className="text-lg font-semibold text-slate-800 px-5 py-4 border-b border-slate-100">
+                  Classes per student this week
+                </h2>
+                <div className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {studentsThisWeek.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-slate-800 truncate">
+                            {s.name || s.email || 'Unknown'}
+                          </p>
+                          {s.name && (
+                            <p className="text-xs text-slate-500 truncate">{s.email}</p>
+                          )}
+                        </div>
+                        <span className="ml-2 flex-shrink-0 inline-flex items-center justify-center min-w-[2rem] h-8 px-2 rounded-lg bg-indigo-100 text-indigo-700 text-sm font-semibold">
+                          {s.classesCount}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }

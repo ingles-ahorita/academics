@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import Layout from '../components/Layout';
 
 export default function InsightsPage() {
   const { teacher, logout } = useAuth();
@@ -56,7 +57,7 @@ export default function InsightsPage() {
       if (attendanceError) throw attendanceError;
       const attendance = attendanceData || [];
 
-      // Fetch all students
+      // Fetch all studentshttps://open.spotify.com/track/7kT8GFH03WvZmqsGTa9pho?si=9187ca56300441d8
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('id, name, email, weekly_classes');
@@ -190,50 +191,17 @@ export default function InsightsPage() {
     });
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   if (!teacher) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 py-8 px-4">
+    <Layout>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">Class Insights</h1>
-            <p className="text-slate-600 mt-1">
-              Analytics for {teacher.role === 'Manager' ? 'all classes' : 'your classes'}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate('/weekly')}
-              className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition font-medium"
-            >
-              Weekly View
-            </button>
-            <button
-              onClick={() => navigate('/classes')}
-              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition font-medium"
-            >
-              Classes
-            </button>
-            <button
-              onClick={() => navigate('/students')}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
-            >
-              Students
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition"
-            >
-              Logout
-            </button>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800">Class Insights</h1>
+          <p className="text-slate-600 mt-1">
+            Analytics for {teacher.role === 'Manager' ? 'all classes' : 'your classes'}
+          </p>
         </div>
 
         {loading && (
@@ -428,6 +396,6 @@ export default function InsightsPage() {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }

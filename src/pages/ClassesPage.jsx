@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import Layout from '../components/Layout';
 
 export default function ClassesPage() {
   const [classes, setClasses] = useState([]);
@@ -571,7 +572,7 @@ export default function ClassesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <Layout>
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -588,30 +589,6 @@ export default function ClassesPage() {
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
             >
               Create Class
-            </button>
-            <button
-              onClick={() => navigate('/students')}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-            >
-              Student Management
-            </button>
-            <button
-              onClick={() => navigate('/weekly')}
-              className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition font-medium"
-            >
-              Weekly View
-            </button>
-            <button
-              onClick={() => navigate('/insights')}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
-            >
-              Insights
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-            >
-              Logout
             </button>
           </div>
         </div>
@@ -982,7 +959,7 @@ export default function ClassesPage() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }
 
