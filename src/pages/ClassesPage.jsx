@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
@@ -15,11 +15,13 @@ export default function ClassesPage() {
   const [classModal, setClassModal] = useState({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
   const [savingClass, setSavingClass] = useState(false);
   const [deletingClass, setDeletingClass] = useState(false);
+  const [deletingClassId, setDeletingClassId] = useState(null);
   const [allTeachers, setAllTeachers] = useState([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [copiedUrlId, setCopiedUrlId] = useState(null);
   const { teacher, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -27,6 +29,15 @@ export default function ClassesPage() {
       navigate('/');
     }
   }, [teacher, navigate]);
+
+  // Open create modal when navigating from Weekly View (or elsewhere) with state.openCreate
+  useEffect(() => {
+    if (teacher && location.state?.openCreate) {
+      navigate(location.pathname, { replace: true, state: {} });
+      handleOpenCreateModal();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacher, location.state?.openCreate]);
 
   useEffect(() => {
     if (teacher) {
@@ -341,19 +352,17 @@ export default function ClassesPage() {
     return ['Complete Beginner', 'Beginner', 'Intermediate'];
   };
 
-  const handleDeleteClass = async () => {
-    if (!classModal.classId) {
+  const deleteClassById = async (classId) => {
+    if (!classId) {
       setError('Class ID is missing');
       return;
     }
 
-    // Confirm deletion
     const confirmed = window.confirm('Are you sure you want to delete this class? This action cannot be undone.');
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setDeletingClass(true);
+    setDeletingClassId(classId);
     setError(null);
 
     try {
@@ -365,14 +374,12 @@ export default function ClassesPage() {
         const result = await supabase
           .from(tableName)
           .delete()
-          .eq('id', classModal.classId)
+          .eq('id', classId)
           .select();
 
         if (!result.error && result.data && result.data.length > 0) {
           success = true;
-          // Refresh classes list
           await fetchClasses();
-          // Close modal and reset form
           setClassModal({ open: false, mode: 'create', classId: null, dateTime: '', level: '', note: '', teacherId: '', url: '' });
           setError(null);
           break;
@@ -390,7 +397,12 @@ export default function ClassesPage() {
       setError(err.message || 'Failed to delete class');
     } finally {
       setDeletingClass(false);
+      setDeletingClassId(null);
     }
+  };
+
+  const handleDeleteClass = () => {
+    if (classModal.classId) deleteClassById(classModal.classId);
   };
 
   const handleSaveClass = async () => {
@@ -811,6 +823,16 @@ export default function ClassesPage() {
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                             </svg>
                                           )}
+                                        </button>
+                                        <button
+                                          onClick={() => deleteClassById(classItem.id)}
+                                          disabled={deletingClassId === classItem.id}
+                                          className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition disabled:opacity-50"
+                                          title="Delete Class"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                          </svg>
                                         </button>
                                       </div>
                                     </td>

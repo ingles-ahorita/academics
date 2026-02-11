@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
 export default function ClassAttendancePage() {
   const { classId } = useParams();
+  const navigate = useNavigate();
   const { teacher } = useAuth();
   const [studentSearch, setStudentSearch] = useState('');
   const [attendingStudents, setAttendingStudents] = useState([]);
@@ -12,6 +13,7 @@ export default function ClassAttendancePage() {
   const [error, setError] = useState('');
   const [classInfo, setClassInfo] = useState(null);
   const [teacherInfo, setTeacherInfo] = useState(null);
+  const [deletingClass, setDeletingClass] = useState(false);
   const [noteModal, setNoteModal] = useState({ open: false, studentId: null, note: '' });
   const [createStudentModal, setCreateStudentModal] = useState({ open: false, name: '', email: '' });
   const [emailSuggestions, setEmailSuggestions] = useState([]);
@@ -378,6 +380,46 @@ export default function ClassAttendancePage() {
     }
   };
 
+  const handleDeleteClass = async () => {
+    if (!classId) return;
+    const confirmed = window.confirm('Are you sure you want to delete this class? This action cannot be undone.');
+    if (!confirmed) return;
+
+    setDeletingClass(true);
+    setError('');
+
+    try {
+      const tableNames = ['classes', 'class', 'sessions', 'lessons', 'academic_classes'];
+      let success = false;
+      let deleteErr = null;
+
+      for (const tableName of tableNames) {
+        const result = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', classId)
+          .select();
+
+        if (!result.error && result.data && result.data.length > 0) {
+          success = true;
+          navigate('/classes');
+          break;
+        }
+        if (result.error && result.error.code !== 'PGRST116') {
+          deleteErr = result.error;
+          break;
+        }
+      }
+
+      if (!success && deleteErr) throw deleteErr;
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      setError(err.message || 'Failed to delete class');
+    } finally {
+      setDeletingClass(false);
+    }
+  };
+
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return 'N/A';
     const date = new Date(dateTimeString);
@@ -552,6 +594,20 @@ export default function ClassAttendancePage() {
             )}
           </div>
         </div>
+
+        {/* Delete Class - bottom of page */}
+        {classInfo && (
+          <div className="mt-8 flex justify-end">
+            <button
+              type="button"
+              onClick={handleDeleteClass}
+              disabled={deletingClass}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deletingClass ? 'Deleting...' : 'Delete Class'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Note Modal */}

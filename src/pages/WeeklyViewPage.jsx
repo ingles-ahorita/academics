@@ -44,6 +44,7 @@ export default function WeeklyViewPage() {
   const [attendanceByStudent, setAttendanceByStudent] = useState({});
   const [students, setStudents] = useState([]);
   const [teacherNames, setTeacherNames] = useState({});
+  const [contextMenu, setContextMenu] = useState(null);
 
   const { start, end } = useMemo(() => {
     const now = new Date();
@@ -230,10 +231,72 @@ export default function WeeklyViewPage() {
     window.open(`/manage-class/${classId}/attendance`, '_blank');
   };
 
+  const deleteClassById = async (classId) => {
+    if (!classId) return;
+    const tableNames = ['classes', 'class', 'sessions', 'lessons', 'academic_classes'];
+    let success = false;
+    let deleteErr = null;
+    for (const tableName of tableNames) {
+      const result = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', classId)
+        .select();
+      if (!result.error && result.data && result.data.length > 0) {
+        success = true;
+        await fetchWeekData();
+        break;
+      }
+      if (result.error && result.error.code !== 'PGRST116') {
+        deleteErr = result.error;
+        break;
+      }
+    }
+    if (!success && deleteErr) {
+      console.error('Error deleting class:', deleteErr);
+      setError(deleteErr.message || 'Failed to delete class');
+    }
+  };
+
+  const handleContextMenuDelete = (e, c) => {
+    e.preventDefault();
+    setContextMenu(null);
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this class (${c.level || 'class'} at ${formatTime(c.date_time)})? This action cannot be undone.`
+    );
+    if (confirmed) deleteClassById(c.id);
+  };
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [contextMenu]);
+
   if (!teacher) return null;
 
   return (
     <Layout>
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[160px] py-1 bg-white rounded-lg shadow-lg border border-slate-200"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-none first:rounded-t-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleContextMenuDelete(e, contextMenu.class);
+            }}
+          >
+            Delete class
+          </button>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
@@ -244,6 +307,12 @@ export default function WeeklyViewPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/classes', { state: { openCreate: true } })}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
+            >
+              Create Class
+            </button>
             <div className="flex items-center bg-white rounded-lg shadow-sm border border-slate-200 p-1">
               <button
                 onClick={() => setWeekOffset((o) => o - 1)}
@@ -334,9 +403,22 @@ export default function WeeklyViewPage() {
                         <p className="text-xs text-slate-400 py-2">No classes</p>
                       ) : (
                         classesByDay[day].map((c) => (
-                          <button
+                          <div
                             key={c.id}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => handleTakeAttendance(c.id)}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setContextMenu({ x: e.clientX, y: e.clientY, class: c });
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleTakeAttendance(c.id);
+                              }
+                            }}
                             className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition cursor-pointer group"
                           >
                             <p className="text-sm font-medium text-slate-800 group-hover:text-indigo-700">
@@ -359,7 +441,7 @@ export default function WeeklyViewPage() {
                                 </span>
                               )}
                             </div>
-                          </button>
+                          </div>
                         ))
                       )}
                     </div>
